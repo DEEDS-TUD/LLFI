@@ -106,7 +106,7 @@ struct InstTrace : public FunctionPass {
     //Create handles to the functions parent module and context
     LLVMContext& context = F.getContext();
     Module *M = F.getParent();
-
+    
     //iterate through each basicblock of the function
     inst_iterator lastInst;
     for (inst_iterator instIterator = inst_begin(F), 
@@ -114,8 +114,50 @@ struct InstTrace : public FunctionPass {
          instIterator != lastInst; ++instIterator) {
 
         //Print some Debug Info as the pass is being run
-      Instruction *inst = &*instIterator;
+        Instruction *inst = &*instIterator;
 
+      //find all instances of thread creation with pthread  - modified by Jakob Schmid
+      if(CallInst *callInst = dyn_cast<CallInst>(inst)){
+        //only detects direct calls to pthread_create
+        if(Function* calledFunc = callInst->getCalledFunction()){
+          //shouldnt be done, names of values only for debugging. Take mangling into consideration
+          if(calledFunc->getName() == "pthread_create"){
+                errs() << "pthread_create function in: "<< *callInst <<" identified\n";
+                //get second argument of pthread_create (the target function) 
+                if(User* user = dyn_cast<User>(callInst->getOperand(2))){
+                    //isolate target of pthread_create 
+                    if(Function* target = dyn_cast<Function>(user->stripPointerCasts())){//getOperand(0))){
+
+                        //insert right at the beginning of the function
+                        Instruction *insertPoint = target->begin()->getFirstNonPHIOrDbgOrLifetime();
+
+                        //Allocate space on stack to pass the targetName at runtime
+                        const char* targetNamePt = target->getName().data();
+                        const std::string str(target->getName());
+                        ArrayRef<uint8_t> targetName_array_ref((uint8_t*)targetNamePt, str.size()+1);
+                        llvm:Value* targetName = llvm::ConstantDataArray::get(context, targetName_array_ref);
+
+                        AllocaInst* targetNamePtr = new AllocaInst(targetName->getType(), "pthread-target", insertPoint);
+                        new StoreInst(targetName, targetNamePtr, insertPoint);
+                        
+                        //Create function signature 
+                        std::vector<Type*> paramVector(1, targetNamePtr->getType());
+                        ArrayRef<Type*> paramVector_array_ref(paramVector);
+                        FunctionType* printTIDType = FunctionType::get(Type::getVoidTy(context), paramVector_array_ref, false);
+                        Constant *printTIDFunc = M->getOrInsertFunction("printTID", printTIDType); 
+
+                        //Prepare actual arguments which are passed
+                        std::vector<Value*> argVector(1, targetNamePtr);
+                        ArrayRef<Value*> argVector_array_ref(argVector); 
+
+                        //Create and insert function call
+                        CallInst::Create(printTIDFunc, argVector_array_ref, "", insertPoint);
+                    }
+                }
+            //}
+            }
+          }
+      }
       if (debugtrace) {
         if (!llfi::isLLFIIndexedInst(inst)) {
           errs() << "Instruction " << *inst << " was not indexed\n";
@@ -127,11 +169,6 @@ struct InstTrace : public FunctionPass {
 
         //Find instrumentation point for current instruction
         Instruction *insertPoint = getInsertPoint(inst);
-        
-        //Skip instrumentation for terminating instructions
-        if (insertPoint->isTerminator()) {
-			continue;
-		}
 
         //======== Find insertion location for alloca QINING @SET 15th============
         Instruction* alloca_insertPoint = inst->getParent()->getParent()->begin()->getFirstNonPHIOrDbgOrLifetime();
@@ -190,7 +227,6 @@ struct InstTrace : public FunctionPass {
         FunctionType* traceFuncType = FunctionType::get(Type::getVoidTy(context), 
                                                         parameterVector_array_ref, false);
         Constant *traceFunc = M->getOrInsertFunction("printInstTracer", traceFuncType); 
-
         //Insert the tracing function, passing it the proper arguments
         std::vector<Value*> traceArgs;
         //Fetch the LLFI Instruction ID:

@@ -7,18 +7,50 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <pthread.h>
+#include<time.h>
 
 #include "Utils.h"
 #include "unistd.h"
 
 //Open a file (once) for writing. This file is not explicitly closed, must flush often!
-static FILE* ofile = NULL;
+static pthread_key_t fileKey;
+static pthread_once_t fileKey_once = PTHREAD_ONCE_INIT;
 extern  long g_flag;
+
+//destructor function which closes respective file if thread terminates
+static void cleanAfterThread(void* ofile){
+  fclose((FILE*) ofile);
+}
+//initialize pthread_key so inidiviual threads can later access their log files via pthread_getspecific
+static void initKey(){
+  pthread_key_create(&fileKey, cleanAfterThread);
+}
+
 FILE* OutputFile() {
-  if (ofile == NULL) {
-    ofile = fopen("llfi.stat.trace.txt", "w");
+  FILE* ofile;
+  pthread_once(&fileKey_once, initKey);
+  //check if log file has yet to be created
+  if ((ofile  = (FILE*) pthread_getspecific(fileKey))  ==  NULL) {
+    //include threadID in name of log file
+    char  filename[50];
+    snprintf(filename, 50, "llfi.stat.trace%li.txt", pthread_self());
+    ofile = fopen(filename, "w");
+    
+    pthread_setspecific(fileKey, ofile);
   }
   return ofile;
+}
+
+long GetTimeStamp(){
+  struct timespec t;
+  // Check which clock to use (CLOCK_REALTIME??)
+  clock_gettime(CLOCK_MONOTONIC, &t);
+  return t.tv_nsec;
+}
+
+void printTID(char* targetFunc){
+	fprintf(OutputFile(), "PTID: %li\t Name: %s\tTIMESTAMP: %li\n", pthread_self(), targetFunc, GetTimeStamp());
 }
 
 static long instCount = 0;
@@ -40,7 +72,7 @@ void printInstTracer(long instID, char *opcode, int size, char* ptr, int maxPrin
   if ((start_tracing_flag == TRACING_GOLDEN_RUN) || 
       ((start_tracing_flag == TRACING_FI_RUN_START_TRACING) && 
        (instCount < cutOff))) {
-    fprintf(OutputFile(), "ID: %ld\tOPCode: %s\tValue: ", instID, opcode);
+    fprintf(OutputFile(), "PTID: %li\tID: %ld\tOPCode: %s\tValue: ", pthread_self(), instID, opcode);
     
     //Handle endian switch
     if (isLittleEndian()) {
@@ -52,9 +84,10 @@ void printInstTracer(long instID, char *opcode, int size, char* ptr, int maxPrin
         fprintf(OutputFile(), "%02hhx", ptr[i]);
       }
     }
-    fprintf(OutputFile(), "\n");
+    fprintf(OutputFile(), "\tTIMESTAMP: %li\n", GetTimeStamp());
 
-    fflush(OutputFile()); 
+    //no need to flush, since files are getting automatically closed once threads exit
+    //fflush(OutputFile()); 
 
   }
   if ((start_tracing_flag != TRACING_GOLDEN_RUN) && instCount >= cutOff )
@@ -63,8 +96,8 @@ void printInstTracer(long instID, char *opcode, int size, char* ptr, int maxPrin
   }
 
 }
-
+//this has become obsolete with per-thread log files. Clean-up is now being done in cleanAfterThread
 void postTracing() {
-  if (ofile != NULL)
-    fclose(ofile);
+  //if (ofile != NULL)
+  //  fclose(ofile);
 }
