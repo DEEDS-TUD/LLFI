@@ -32,9 +32,9 @@ import stat
 
 prog = os.path.basename(sys.argv[0])
 required_configs = {
-  "LLVM_DST_ROOT": "",
-  "LLVM_SRC_ROOT": "",
-  "LLFI_BUILD_ROOT": ""
+  "LLVM_DST_ROOT": "/home/llfi/llvm",
+  "LLVM_SRC_ROOT": "/home/llfi/llvmsrc",
+  "LLFI_BUILD_ROOT": "/home/llfi/llfi"
 }
 optional_configs = {
   "LLVM_GXX_BIN_DIR": "",
