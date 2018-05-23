@@ -26,7 +26,7 @@ Author: Sam Coulter
 #include "llvm/Support/InstIterator.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/IR/DataLayout.h"
-
+#include "TraceVisitor.h"
 #include "Utils.h"
 
 using namespace llvm;
@@ -106,7 +106,9 @@ struct InstTrace : public FunctionPass {
     //Create handles to the functions parent module and context
     LLVMContext& context = F.getContext();
     Module *M = F.getParent();
-    
+   
+   TraceVisitor tv; 
+   tv.visit(F);
     //iterate through each basicblock of the function
     inst_iterator lastInst;
     for (inst_iterator instIterator = inst_begin(F), 
@@ -158,6 +160,7 @@ struct InstTrace : public FunctionPass {
             }
           }
       }
+
       if (debugtrace) {
         if (!llfi::isLLFIIndexedInst(inst)) {
           errs() << "Instruction " << *inst << " was not indexed\n";
@@ -174,6 +177,11 @@ struct InstTrace : public FunctionPass {
         Instruction* alloca_insertPoint = inst->getParent()->getParent()->begin()->getFirstNonPHIOrDbgOrLifetime();
         //========================================================================
 
+//        if(BinaryOperator *tmpInst = dyn_cast<BinaryOperator>(inst)){
+        //  if(isa<BinaryOperator>(inst)){
+        //  inst->print(errs() << " -- " << inst->getOperand(0) << "\n");
+        //  inst->print(errs() << " -- " << inst->getOperand(1) << "\n");
+        //}
 
         //Fetch size of instruction value
         //The size must be rounded up before conversion to bytes because some data in llvm
@@ -196,6 +204,22 @@ struct InstTrace : public FunctionPass {
           bitSize = 32;
         }
         int byteSize = (int)ceil(bitSize / 8.0);
+        float opBitSize;
+        AllocaInst* opInstr;
+        if(isa<UnaryInstruction>(inst) || isa<BinaryOperator>(inst)){
+          opInstr = new AllocaInst(inst->getOperand(0)->getType(), "llfi_trace", alloca_insertPoint);
+          new StoreInst(inst->getOperand(0), opInstr, insertPoint);
+          DataLayout &td = getAnalysis<DataLayout>();
+          opBitSize = (float) td.getTypeSizeInBits(inst->getOperand(0)->getType());
+        }
+        else {
+          opInstr = new AllocaInst(Type::getInt32Ty(context), "llfi_trace", alloca_insertPoint);
+          new StoreInst(ConstantInt::get(IntegerType::get(context, 32), 0), opInstr, insertPoint);
+          opBitSize = 32;
+        }
+
+
+        int opByteSize = (int) ceil(opBitSize / 8.0);
 
         //Insert instructions to allocate stack memory for opcode name
         
@@ -211,7 +235,7 @@ struct InstTrace : public FunctionPass {
         new StoreInst(OPCodeName, OPCodePtr, insertPoint);
 
         //Create the decleration of the printInstTracer Function
-        std::vector<Type*> parameterVector(5);
+        std::vector<Type*> parameterVector(7);
         parameterVector[0] = Type::getInt32Ty(context); //ID
         parameterVector[1] = OPCodePtr->getType(); 
         //======== opcode_str QINING @SET 15th============
@@ -220,6 +244,8 @@ struct InstTrace : public FunctionPass {
         parameterVector[2] = Type::getInt32Ty(context); //Size of Inst Value
         parameterVector[3] = ptrInst->getType();    //Ptr to Inst Value
         parameterVector[4] = Type::getInt32Ty(context); //Int of max traces
+        parameterVector[5] = Type::getInt32Ty(context);
+        parameterVector[6] = opInstr->getType();
 
         //LLVM 3.3 Upgrade
         ArrayRef<Type*> parameterVector_array_ref(parameterVector);
@@ -235,6 +261,8 @@ struct InstTrace : public FunctionPass {
 
         ConstantInt* instValSize = ConstantInt::get(
                                       IntegerType::get(context, 32), byteSize);
+
+        ConstantInt* opValSize = ConstantInt::get(IntegerType::get(context, 32), opByteSize);
 
         //Fetch maxtrace number:
         ConstantInt* maxTraceConstInt =
@@ -256,12 +284,15 @@ struct InstTrace : public FunctionPass {
         traceArgs.push_back(instValSize);
         traceArgs.push_back(ptrInst);
         traceArgs.push_back(maxTraceConstInt);
+        traceArgs.push_back(opValSize);
+        traceArgs.push_back(opInstr);
 
         //LLVM 3.3 Upgrade
         ArrayRef<Value*> traceArgs_array_ref(traceArgs);
 
         //Create the Function
         CallInst::Create(traceFunc, traceArgs_array_ref, "", insertPoint);
+         
       }
     }//Function Iteration
 

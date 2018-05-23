@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include<time.h>
+#include<stdarg.h>
 
 #include "Utils.h"
 #include "unistd.h"
@@ -50,16 +51,31 @@ long GetTimeStamp(){
 }
 
 void printTID(char* targetFunc){
-	fprintf(OutputFile(), "PTID: %li\t Name: %s\tTIMESTAMP: %li\n", pthread_self(), targetFunc, GetTimeStamp());
+	fprintf(OutputFile(), "#PTID: %li\t Name: %s\tTIMESTAMP: %li\n", pthread_self(), targetFunc, GetTimeStamp());
+}
+
+char* printContent(char* ptr, int size){
+  int i;
+//Handle endian switch
+  if (isLittleEndian()) {
+    for (i = size - 1; i >= 0; i--) {
+      fprintf(OutputFile(), "%02hhx", ptr[i]);
+    }
+  } 
+  else {
+    for (i = 0; i < size; i++) {
+      fprintf(OutputFile(), "%02hhx", ptr[i]);
+    }
+  }
 }
 
 static long instCount = 0;
 static long cutOff = 0;
-void printInstTracer(long instID, char *opcode, int size, char* ptr, int maxPrints) {
+void printInstTracer(long instID, char *opcode, int size, char* ptr, int maxPrints, int opSize, char* opPtr) {
+//  va_list args;
+//  va_start(args, count);
   int i;
   instCount++;
-
-  
   if (start_tracing_flag == TRACING_FI_RUN_FAULT_INSERTED) {
     start_tracing_flag = TRACING_FI_RUN_START_TRACING;
     cutOff = instCount + maxPrints;
@@ -73,17 +89,11 @@ void printInstTracer(long instID, char *opcode, int size, char* ptr, int maxPrin
       ((start_tracing_flag == TRACING_FI_RUN_START_TRACING) && 
        (instCount < cutOff))) {
     fprintf(OutputFile(), "PTID: %li\tID: %ld\tOPCode: %s\tValue: ", pthread_self(), instID, opcode);
+   
+   printContent(ptr, size); 
+   fprintf(OutputFile(), "\t Operand: ");
+   printContent(opPtr, opSize);
     
-    //Handle endian switch
-    if (isLittleEndian()) {
-      for (i = size - 1; i >= 0; i--) {
-        fprintf(OutputFile(), "%02hhx", ptr[i]);
-      }
-    } else {
-      for (i = 0; i < size; i++) {
-        fprintf(OutputFile(), "%02hhx", ptr[i]);
-      }
-    }
     fprintf(OutputFile(), "\tTIMESTAMP: %li\n", GetTimeStamp());
 
     //no need to flush, since files are getting automatically closed once threads exit
