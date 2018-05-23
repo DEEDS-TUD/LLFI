@@ -235,16 +235,19 @@ struct InstTrace : public FunctionPass {
         new StoreInst(OPCodeName, OPCodePtr, insertPoint);
 
         //Create the decleration of the printInstTracer Function
-        std::vector<Type*> parameterVector(7);
+        std::vector<Type*> parameterVector(8);
         parameterVector[0] = Type::getInt32Ty(context); //ID
         parameterVector[1] = OPCodePtr->getType(); 
         //======== opcode_str QINING @SET 15th============
         //parameterVector[1] = PointerType::get(Type::getInt8Ty(context), 0);     //Ptr to OpCode
         //================================================
-        parameterVector[2] = Type::getInt32Ty(context); //Size of Inst Value
-        parameterVector[3] = ptrInst->getType();    //Ptr to Inst Value
-        parameterVector[4] = Type::getInt32Ty(context); //Int of max traces
+        parameterVector[2] = Type::getInt32Ty(context); //Int of max traces
+        parameterVector[3] = Type::getInt32Ty(context);
+        // variable arguments
+        
         parameterVector[5] = Type::getInt32Ty(context);
+        parameterVector[4] = ptrInst->getType();    //Ptr to Inst Value
+        parameterVector[7] = Type::getInt32Ty(context); //Size of Inst Value
         parameterVector[6] = opInstr->getType();
 
         //LLVM 3.3 Upgrade
@@ -268,6 +271,8 @@ struct InstTrace : public FunctionPass {
         ConstantInt* maxTraceConstInt =
         ConstantInt::get(IntegerType::get(context, 32), maxtrace);
 
+        ConstantInt* countInt = ConstantInt::get(IntegerType::get(context, 32), 2);
+
         //======== opcode_str QINING @SET 15th============
         //string opcode_str = fi_inst->getOpcodeName();
         //GlobalVariable* opcode_str_gv = findOrCreateGlobalNameString(M, opcode_str);
@@ -281,11 +286,12 @@ struct InstTrace : public FunctionPass {
         //Load All Arguments
         traceArgs.push_back(IDConstInt);
         traceArgs.push_back(OPCodePtr);
-        traceArgs.push_back(instValSize);
-        traceArgs.push_back(ptrInst);
         traceArgs.push_back(maxTraceConstInt);
-        traceArgs.push_back(opValSize);
+        traceArgs.push_back(countInt);
+        traceArgs.push_back(ptrInst);
+        traceArgs.push_back(instValSize);
         traceArgs.push_back(opInstr);
+        traceArgs.push_back(opValSize);
 
         //LLVM 3.3 Upgrade
         ArrayRef<Value*> traceArgs_array_ref(traceArgs);

@@ -71,9 +71,10 @@ char* printContent(char* ptr, int size){
 
 static long instCount = 0;
 static long cutOff = 0;
-void printInstTracer(long instID, char *opcode, int size, char* ptr, int maxPrints, int opSize, char* opPtr) {
-//  va_list args;
-//  va_start(args, count);
+void printInstTracer(long instID, char *opcode, int maxPrints, int count, ...){
+//    char* ptr, int size, char*opPtr, int opSize) {
+  va_list args;
+  va_start(args, count);
   int i;
   instCount++;
   if (start_tracing_flag == TRACING_FI_RUN_FAULT_INSERTED) {
@@ -89,11 +90,17 @@ void printInstTracer(long instID, char *opcode, int size, char* ptr, int maxPrin
       ((start_tracing_flag == TRACING_FI_RUN_START_TRACING) && 
        (instCount < cutOff))) {
     fprintf(OutputFile(), "PTID: %li\tID: %ld\tOPCode: %s\tValue: ", pthread_self(), instID, opcode);
-   
+  
+   char* ptr = va_arg(args, char*); 
+   int size = va_arg(args, int);
    printContent(ptr, size); 
-   fprintf(OutputFile(), "\t Operand: ");
-   printContent(opPtr, opSize);
-    
+   for (i = 1; i < count; ++i) {
+    fprintf(OutputFile(), "\t Operand%d: ", i-1);
+    char* opPtr = va_arg(args, char*);
+    int opSize = va_arg(args, int);
+    printContent(opPtr, opSize);
+   }
+   va_end(args); 
     fprintf(OutputFile(), "\tTIMESTAMP: %li\n", GetTimeStamp());
 
     //no need to flush, since files are getting automatically closed once threads exit
