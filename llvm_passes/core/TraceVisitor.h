@@ -26,18 +26,20 @@ private:
 
 public:
   TraceVisitor (LLVMContext*, Module*, DataLayout*, int maxtrace);
+  void visitGeneric(CallInst&);
   //void visitInstruction(Instruction &);
-//  void visitLoadInst(LoadInst &);
+  //void visitLoadInst(LoadInst &);
 //  void visitFunction(Function &);
 //  void visitUnaryInstruction(UnaryInstruction &);
-  void visitStoreInst(StoreInst &);
+  //void visitStoreInst(StoreInst &);
   void visitCallInst(CallInst &);
+  void visitBranchInst(BranchInst &);
 
 private:
   Instruction* getInsertPoint(Instruction*);
   Instruction* getAllocaInsertPoint(Instruction*);
-  AllocaInst* insertInstrumentation(Value*, Instruction*, Instruction*);
+  AllocaInst* insertInstrumentation(Value*, Type*, Instruction*, Instruction*);
   int getSize(Type* type);
   AllocaInst* insertOpCode(Instruction*, Instruction*, Instruction*);
-  void insertCall(Instruction*, Instruction*, std::vector<Value*>&, Instruction*);
+  void insertCall(Instruction*, Instruction*, std::vector<AllocaInst*>&, Instruction*);
 };

@@ -183,7 +183,7 @@ struct InstTrace : public FunctionPass {
             }
       */
 
-      if (llfi::isLLFIIndexedInst(inst)) {
+      if (llfi::isLLFIIndexedInst(inst) && isa<StoreInst>(inst)) {
 
         // Find instrumentation point for current instruction
         Instruction *insertPoint = getInsertPoint(inst);
@@ -229,7 +229,7 @@ struct InstTrace : public FunctionPass {
         int byteSize = (int)ceil(bitSize / 8.0);
         float opBitSize;
         AllocaInst *opInstr;
-        if (isa<LoadInst>(inst)) {
+        if (isa<StoreInst>(inst)) {
           opInstr = new AllocaInst(inst->getOperand(0)->getType(), "llfi_trace",
                                    alloca_insertPoint);
           new StoreInst(inst->getOperand(0), opInstr, insertPoint);
@@ -246,6 +246,8 @@ struct InstTrace : public FunctionPass {
 
         int opByteSize = (int)ceil(opBitSize / 8.0);
 
+        errs() << "v_size: " << byteSize << " -- v: " << *(ptrInst->getType()) << "\n";
+        errs() << "o_size: " << opByteSize << " --o: " << *(opInstr->getType()) << "\n";
         // Insert instructions to allocate stack memory for opcode name
 
         const char *opcodeNamePt = inst->getOpcodeName();
