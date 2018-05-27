@@ -32,7 +32,6 @@ TraceVisitor::insertInstrumentation(Value *val, Type *type,
     aInst = new AllocaInst(type, "llfi_trace", alloca_insertPoint);
     // Insert an instruction to Store the instruction Value!
     new StoreInst(val, aInst, insertPoint);
-
     // DataLayout &td = getAnalysis<DataLayout>();
     bitSize = (float)dataLayout->getTypeSizeInBits(type);
   } else {
@@ -54,8 +53,14 @@ AllocaInst *TraceVisitor::insertOpCode(Instruction *inst,
                                        Instruction *alloca_insertPoint) {
   // Insert instructions to allocate stack memory for opcode name
 
-  const char *opcodeNamePt = inst->getOpcodeName();
-  const std::string str(inst->getOpcodeName());
+//  const char *tmpName = inst->getOpcodeName();
+  std::string str(inst->getOpcodeName());
+  if(isa<CallInst>(inst)) {
+    CallInst* ci = dyn_cast<CallInst>(inst);
+    std::string name(ci->getCalledFunction()->getName());
+    str = str + "-" + name;
+  }
+  const char* opcodeNamePt = str.c_str();
   ArrayRef<uint8_t> opcode_name_array_ref((uint8_t *)opcodeNamePt,
                                           str.size() + 1);
   // llvm::Value* OPCodeName = llvm::ConstantArray::get(context,
@@ -113,8 +118,8 @@ void TraceVisitor::insertCall(Instruction *inst, Instruction *opCodeInst,
   CallInst::Create(traceFunc, traceArgs_array_ref, "", insertPoint);
 }
 
-void TraceVisitor::visitGeneric(CallInst&I) {
- if (!llfi::isLLFIIndexedInst(&I) || I.getCalledFunction()->getName() != "llvm.memcpy.p0i8.p0i8.i64") {
+void TraceVisitor::visitGeneric(Instruction &I) {
+ if (!llfi::isLLFIIndexedInst(&I)) {
     return;
   }
   errs() << "Dealing with " << I << "...\n";
@@ -126,19 +131,20 @@ void TraceVisitor::visitGeneric(CallInst&I) {
   std::vector<AllocaInst *> values;
   values.push_back(aInst);
   for (std::size_t i = 0; i != I.getNumOperands(); i++) {
+    if(isa<CallInst>(I) && i == I.getNumOperands() -1) {
+      continue;
+    }
     values.push_back(insertInstrumentation(I.getOperand(i),
                                            I.getOperand(i)->getType(),
                                            insertPoint, alloca_insertPoint));
   }
   AllocaInst *opCodeInst = insertOpCode(&I, insertPoint, alloca_insertPoint);
   insertCall(&I, opCodeInst, values, insertPoint);
-
-  errs() << "Value: " << *aInst << "\n";
 }
 
-//void TraceVisitor::visitInstruction(Instruction &I) {
- // visitGeneric(I);
-// }
+void TraceVisitor::visitInstruction(Instruction &I) {
+  visitGeneric(I);
+ }
 
 void TraceVisitor::visitBranchInst(BranchInst &BI) {}
 /*
@@ -188,10 +194,7 @@ void TraceVisitor::visitCallInst(CallInst &CI) {
   if (!llfi::isLLFIIndexedInst(&CI)) {
     return;
   }
- // if(CI.getCalledFunction()->getName() == "llvm.memcpy.p0i8.p0i8.i64") {
- //   return;
- // }
-//  errs() << "Check : " << CI.getCalledFunction()->getName() << "\n";
+
 
   visitGeneric(CI);
   //    CI.print(errs() << " -- \n");

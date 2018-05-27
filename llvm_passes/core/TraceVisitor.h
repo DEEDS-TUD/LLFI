@@ -26,8 +26,8 @@ private:
 
 public:
   TraceVisitor (LLVMContext*, Module*, DataLayout*, int maxtrace);
-  void visitGeneric(CallInst&);
-  //void visitInstruction(Instruction &);
+  void visitGeneric(Instruction&);
+  void visitInstruction(Instruction &);
   //void visitLoadInst(LoadInst &);
 //  void visitFunction(Function &);
 //  void visitUnaryInstruction(UnaryInstruction &);
