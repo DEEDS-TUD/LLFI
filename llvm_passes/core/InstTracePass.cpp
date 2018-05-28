@@ -109,8 +109,8 @@ struct InstTrace : public FunctionPass {
     // Create handles to the functions parent module and context
     LLVMContext &context = F.getContext();
     Module *M = F.getParent();
-    errs() << "Running on function " << F.getName() << " # \n"; 
-    DataLayout& dl = getAnalysis<DataLayout>();
+    // errs() << "Running on function " << F.getName() << " # \n";
+    DataLayout &dl = getAnalysis<DataLayout>();
     TraceVisitor tv(&context, M, &dl, maxtrace);
     tv.visit(F);
     return true;
@@ -189,7 +189,7 @@ struct InstTrace : public FunctionPass {
         Instruction *insertPoint = getInsertPoint(inst);
 
         //======== Find insertion location for alloca QINING @SET
-        //15th============
+        // 15th============
         Instruction *alloca_insertPoint = inst->getParent()
                                               ->getParent()
                                               ->begin()
@@ -246,8 +246,10 @@ struct InstTrace : public FunctionPass {
 
         int opByteSize = (int)ceil(opBitSize / 8.0);
 
-        errs() << "v_size: " << byteSize << " -- v: " << *(ptrInst->getType()) << "\n";
-        errs() << "o_size: " << opByteSize << " --o: " << *(opInstr->getType()) << "\n";
+        errs() << "v_size: " << byteSize << " -- v: " << *(ptrInst->getType())
+               << "\n";
+        errs() << "o_size: " << opByteSize << " --o: " << *(opInstr->getType())
+               << "\n";
         // Insert instructions to allocate stack memory for opcode name
 
         const char *opcodeNamePt = inst->getOpcodeName();

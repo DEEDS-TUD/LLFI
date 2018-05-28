@@ -53,14 +53,14 @@ AllocaInst *TraceVisitor::insertOpCode(Instruction *inst,
                                        Instruction *alloca_insertPoint) {
   // Insert instructions to allocate stack memory for opcode name
 
-//  const char *tmpName = inst->getOpcodeName();
+  //  const char *tmpName = inst->getOpcodeName();
   std::string str(inst->getOpcodeName());
-  if(isa<CallInst>(inst)) {
-    CallInst* ci = dyn_cast<CallInst>(inst);
+  if (isa<CallInst>(inst)) {
+    CallInst *ci = dyn_cast<CallInst>(inst);
     std::string name(ci->getCalledFunction()->getName());
     str = str + "-" + name;
   }
-  const char* opcodeNamePt = str.c_str();
+  const char *opcodeNamePt = str.c_str();
   ArrayRef<uint8_t> opcode_name_array_ref((uint8_t *)opcodeNamePt,
                                           str.size() + 1);
   // llvm::Value* OPCodeName = llvm::ConstantArray::get(context,
@@ -118,12 +118,33 @@ void TraceVisitor::insertCall(Instruction *inst, Instruction *opCodeInst,
   CallInst::Create(traceFunc, traceArgs_array_ref, "", insertPoint);
 }
 
+AllocaInst *TraceVisitor::insertIntrinsicInstrumentation(
+    Function *inst, Instruction *insertPoint, Instruction *alloca_insertPoint) {
+
+  std::stringstream ss;
+  ss << inst->getIntrinsicID();
+  std::string str = ss.str();
+  //  std::string str("sdfsdf");
+  const char *intrinsicNamePt = str.c_str();
+  ArrayRef<uint8_t> intrinsic_name_array_ref((uint8_t *)intrinsicNamePt,
+                                             str.size() + 1);
+  // llvm::Value* OPCodeName = llvm::ConstantArray::get(context,
+  // opcode_name_array_ref);
+  llvm::Value *intrinsicName =
+      llvm::ConstantDataArray::get(*context, intrinsic_name_array_ref);
+  /********************************/
+
+  AllocaInst *aInst = new AllocaInst(intrinsicName->getType(), "llfi_trace",
+                                     alloca_insertPoint);
+  new StoreInst(intrinsicName, aInst, insertPoint);
+  return aInst;
+}
 void TraceVisitor::visitGeneric(Instruction &I) {
- if (!llfi::isLLFIIndexedInst(&I)) {
+  if (!llfi::isLLFIIndexedInst(&I)) {
     return;
   }
-  errs() << "Dealing with " << I << "...\n";
-  //errs() << "The number of operands:" << I.getNumOperands() << " -- \n";
+  // errs() << "Dealing with " << I << "...\n";
+  // errs() << "The number of operands:" << I.getNumOperands() << " -- \n";
   Instruction *insertPoint = getInsertPoint(&I);
   Instruction *alloca_insertPoint = getAllocaInsertPoint(&I);
   AllocaInst *aInst =
@@ -131,70 +152,53 @@ void TraceVisitor::visitGeneric(Instruction &I) {
   std::vector<AllocaInst *> values;
   values.push_back(aInst);
   for (std::size_t i = 0; i != I.getNumOperands(); i++) {
-    if(isa<CallInst>(I) && i == I.getNumOperands() -1) {
-      continue;
+    if (Function *f = dyn_cast<Function>(I.getOperand(i))) {
+      if (f->getIntrinsicID())
+        values.push_back(
+            insertIntrinsicInstrumentation(f, insertPoint, alloca_insertPoint));
     }
-    values.push_back(insertInstrumentation(I.getOperand(i),
-                                           I.getOperand(i)->getType(),
-                                           insertPoint, alloca_insertPoint));
+    else if (BasicBlock* bb = dyn_cast<BasicBlock>(I.getOperand(i))) {
+      
+    }
+
+    else {
+      values.push_back(insertInstrumentation(I.getOperand(i),
+                                             I.getOperand(i)->getType(),
+                                             insertPoint, alloca_insertPoint));
+    }
   }
   AllocaInst *opCodeInst = insertOpCode(&I, insertPoint, alloca_insertPoint);
   insertCall(&I, opCodeInst, values, insertPoint);
 }
 
-void TraceVisitor::visitInstruction(Instruction &I) {
-  visitGeneric(I);
- }
+AllocaInst* TraceVisitor::insertBasicBlockInstrumentation(BasicBlock* inst, Instruction* insertPoint, Instruction* alloca_insertPoint) {
+   std::stringstream ss;
+  ss << llfi::getLLFIIndexofInst(inst->getFirstNonPHIOrDbgOrLifetime());
+  std::string str = ss.str();
+  //  std::string str("sdfsdf");
+  const char *intrinsicNamePt = str.c_str();
+  ArrayRef<uint8_t> intrinsic_name_array_ref((uint8_t *)intrinsicNamePt,
+                                             str.size() + 1);
+  // llvm::Value* OPCodeName = llvm::ConstantArray::get(context,
+  // opcode_name_array_ref);
+  llvm::Value *intrinsicName =
+      llvm::ConstantDataArray::get(*context, intrinsic_name_array_ref);
+  /********************************/
 
-void TraceVisitor::visitBranchInst(BranchInst &BI) {}
-/*
-void TraceVisitor::visitLoadInst(LoadInst &LI) {
-  if(!llfi::isLLFIIndexedInst(&LI)) {
-    return;
-  }
-  errs() << "Dealing with " << LI << "...\n";
-  errs() << "The number of operands:" << LI.getNumOperands() << " -- \n";
-  Instruction *insertPoint = getInsertPoint(&LI);
-  Instruction *alloca_insertPoint = getAllocaInsertPoint(&LI);
-  AllocaInst *aInst = insertInstrumentation(LI.getPointerOperand(),
-LI.getPointerOperand()->getType(), insertPoint, alloca_insertPoint);
-  AllocaInst *op1Inst = insertInstrumentation(&LI, LI.getType(), insertPoint,
-alloca_insertPoint);
-  std::vector<AllocaInst*> values;
-  values.push_back(aInst);
-  values.push_back(op1Inst);
-  AllocaInst * opCodeInst = insertOpCode(&LI, insertPoint, alloca_insertPoint);
-  insertCall(&LI, opCodeInst, values, insertPoint);
-
+  AllocaInst *aInst = new AllocaInst(intrinsicName->getType(), "llfi_trace",
+                                     alloca_insertPoint);
+  new StoreInst(intrinsicName, aInst, insertPoint);
 }
+void TraceVisitor::visitInstruction(Instruction &I) { visitGeneric(I); }
 
-void TraceVisitor::visitStoreInst(StoreInst &SI) {
-  if (!llfi::isLLFIIndexedInst(&SI)) {
-    return;
-  }
-  errs() << "Dealing with " << SI << "...\n";
-  errs() << "The number of operands:" << SI.getNumOperands() << " -- \n";
-  Instruction *insertPoint = getInsertPoint(&SI);
-  Instruction *alloca_insertPoint = getAllocaInsertPoint(&SI);
-  AllocaInst *aInst = insertInstrumentation(SI.getValueOperand(),
-SI.getValueOperand()->getType(), insertPoint,
-                        alloca_insertPoint);
-  AllocaInst *op1Inst =
-insertInstrumentation(SI.getPointerOperand(),SI.getPointerOperand()->getType(),
-insertPoint, alloca_insertPoint);
-  std::vector<AllocaInst *> values;
-  values.push_back(aInst);
-  values.push_back(op1Inst);
-
-  AllocaInst *opCodeInst = insertOpCode(&SI, insertPoint, alloca_insertPoint);
-  insertCall(&SI, opCodeInst, values, insertPoint);
+void TraceVisitor::visitBranchInst(BranchInst &BI) {
+//  visitGeneric(BI);
+  
 }
-*/
 void TraceVisitor::visitCallInst(CallInst &CI) {
   if (!llfi::isLLFIIndexedInst(&CI)) {
     return;
   }
-
 
   visitGeneric(CI);
   //    CI.print(errs() << " -- \n");
