@@ -91,15 +91,15 @@ void printInstTracer(long instID, char *opcode, int maxPrints, int count, char* 
       ((start_tracing_flag == TRACING_FI_RUN_START_TRACING) &&
        (instCount < cutOff))) {
 
-    fprintf(OutputFile(), "%li ; ", GetTimeStamp());
-    fprintf(OutputFile(), "%li ; %ld ; %s ; ",
+    fprintf(OutputFile(), "%li;", GetTimeStamp());
+    fprintf(OutputFile(), "%li;%ld;%s;",
             pthread_self(), instID, opcode);
 
 //    char *ptr = va_arg(args, char *);
 //    int size = va_arg(args, int);
     printContent(val, v_size);
     for (i = 1; i < count; ++i) {
-      fprintf(OutputFile(), " ; ", i - 1);
+      fprintf(OutputFile(), ";", i - 1);
       char *opPtr = va_arg(args, char *);
       int opSize = va_arg(args, int);
       printContent(opPtr, opSize);
