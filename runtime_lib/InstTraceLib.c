@@ -50,8 +50,10 @@ long GetTimeStamp() {
 }
 
 void printTID(char *targetFunc) {
-  fprintf(OutputFile(), "#PTID: %li\t Name: %s\tTIMESTAMP: %li\n",
-          pthread_self(), targetFunc, GetTimeStamp());
+  OutputFile();
+  //fprintf(OutputFile(), " \n");
+  //fprintf(OutputFile(), "#PTID: %li\t Name: %s\tTIMESTAMP: %li\n",
+  //        pthread_self(), targetFunc, GetTimeStamp()); 
 }
 
 char *printContent(char *ptr, int size) {
@@ -88,21 +90,22 @@ void printInstTracer(long instID, char *opcode, int maxPrints, int count, char* 
   if ((start_tracing_flag == TRACING_GOLDEN_RUN) ||
       ((start_tracing_flag == TRACING_FI_RUN_START_TRACING) &&
        (instCount < cutOff))) {
-    fprintf(OutputFile(), "PTID: %li\tID: %ld\tOPCode: %s\tValue: ",
+
+    fprintf(OutputFile(), "%li ; ", GetTimeStamp());
+    fprintf(OutputFile(), "%li ; %ld ; %s ; ",
             pthread_self(), instID, opcode);
 
 //    char *ptr = va_arg(args, char *);
 //    int size = va_arg(args, int);
     printContent(val, v_size);
     for (i = 1; i < count; ++i) {
-      fprintf(OutputFile(), "\t Operand%d: ", i - 1);
+      fprintf(OutputFile(), " ; ", i - 1);
       char *opPtr = va_arg(args, char *);
       int opSize = va_arg(args, int);
       printContent(opPtr, opSize);
     }
     va_end(args);
-    fprintf(OutputFile(), "\tTIMESTAMP: %li\n", GetTimeStamp());
-
+    fprintf(OutputFile(), "\n");
     // no need to flush, since files are getting automatically closed once
     // threads exit
     // fflush(OutputFile());
