@@ -39,6 +39,7 @@ public:
 private:
   Instruction *getInsertPoint(Instruction *);
   Instruction *getAllocaInsertPoint(Instruction *);
+  AllocaInst* insertStringInstrumentation(std::string&, Instruction*, Instruction*);
   AllocaInst *insertInstrumentation(Value *, Type *, Instruction *,
                                     Instruction *);
   AllocaInst *insertIntrinsicInstrumentation(Function *, Instruction *,
@@ -46,6 +47,7 @@ private:
   AllocaInst *insertBasicBlockInstrumentation(BasicBlock*, Instruction *, Instruction *);
   int getSize(Type *type);
   AllocaInst *insertOpCode(Instruction *, Instruction *, Instruction *);
-  void insertCall(Instruction *, Instruction *, std::vector<AllocaInst *> &,
+  void insertCall(Instruction *, Instruction*, Instruction *, std::vector<AllocaInst *> &,
                   Instruction *);
+  void appendInitTyChar(std::stringstream&, Value*);
 };

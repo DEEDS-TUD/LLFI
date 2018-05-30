@@ -72,7 +72,7 @@ char *printContent(char *ptr, int size) {
 
 static long instCount = 0;
 static long cutOff = 0;
-void printInstTracer(long instID, char *opcode, int maxPrints, int count, char* val, int v_size, ...) {
+void printInstTracer(long instID, char *opcode, int maxPrints, int count, char* types, char* val, int v_size, ...) {
   //    char* ptr, int size, char*opPtr, int opSize) {
   va_list args;
   va_start(args, v_size);
@@ -92,8 +92,8 @@ void printInstTracer(long instID, char *opcode, int maxPrints, int count, char* 
        (instCount < cutOff))) {
 
     fprintf(OutputFile(), "%li;", GetTimeStamp());
-    fprintf(OutputFile(), "%li;%ld;%s;",
-            pthread_self(), instID, opcode);
+    fprintf(OutputFile(), "%li;%ld;%s;%s;",
+            pthread_self(), instID, opcode,types);
 
 //    char *ptr = va_arg(args, char *);
 //    int size = va_arg(args, int);
