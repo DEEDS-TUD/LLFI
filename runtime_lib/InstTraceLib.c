@@ -11,6 +11,7 @@ instTrace LLVM
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <string.h>
 
 #include "Utils.h"
 #include "unistd.h"
@@ -20,6 +21,7 @@ instTrace LLVM
 static pthread_key_t fileKey;
 static pthread_once_t fileKey_once = PTHREAD_ONCE_INIT;
 extern long g_flag;
+#define DELIMTER ':';
 
 // destructor function which closes respective file if thread terminates
 static void cleanAfterThread(void *ofile) { fclose((FILE *)ofile); }
@@ -56,9 +58,10 @@ void printTID(char *targetFunc) {
   //        pthread_self(), targetFunc, GetTimeStamp()); 
 }
 
-char *printContent(char *ptr, int size) {
+char *printContent(char *ptr, int size, char* type) {
   int i;
   // Handle endian switch
+  fprintf(OutputFile(), "%s-", type); 
   if (isLittleEndian()) {
     for (i = size - 1; i >= 0; i--) {
       fprintf(OutputFile(), "%02hhx", ptr[i]);
@@ -69,7 +72,14 @@ char *printContent(char *ptr, int size) {
     }
   }
 }
-
+char* getNextType(char* res, char* types, int index) {
+  if(strlen(types) < index*3) {
+    fprintf(stderr, "Warning: wrong type string format...\n");
+  }
+  memcpy(res, &types[3*index], 2);
+  res[2] = '\0';
+  return res;
+}
 static long instCount = 0;
 static long cutOff = 0;
 void printInstTracer(long instID, char *opcode, int maxPrints, int count, char* types, char* val, int v_size, ...) {
@@ -92,17 +102,18 @@ void printInstTracer(long instID, char *opcode, int maxPrints, int count, char* 
        (instCount < cutOff))) {
 
     fprintf(OutputFile(), "%li;", GetTimeStamp());
-    fprintf(OutputFile(), "%li;%ld;%s;%s;",
-            pthread_self(), instID, opcode,types);
+    fprintf(OutputFile(), "%li;%ld;%s;",
+            pthread_self(), instID, opcode);
 
 //    char *ptr = va_arg(args, char *);
 //    int size = va_arg(args, int);
-    printContent(val, v_size);
+    char res[3];
+    printContent(val, v_size, getNextType(res, types, 0));
     for (i = 1; i < count; ++i) {
-      fprintf(OutputFile(), ";", i - 1);
+      fprintf(OutputFile(), ";");
       char *opPtr = va_arg(args, char *);
       int opSize = va_arg(args, int);
-      printContent(opPtr, opSize);
+      printContent(opPtr, opSize, getNextType(res, types, i));
     }
     va_end(args);
     fprintf(OutputFile(), "\n");

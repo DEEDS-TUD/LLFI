@@ -25,26 +25,16 @@ TraceVisitor::insertInstrumentation(Value *val, Type *type,
                                     Instruction *alloca_insertPoint) {
   float bitSize;
   AllocaInst *aInst;
-  //  Type* type = val->getType();
   if (type != Type::getVoidTy(*context)) {
-    // insert an instruction Allocate stack memory to store/pass
-    // instruction value
     aInst = new AllocaInst(type, "llfi_trace", alloca_insertPoint);
     // Insert an instruction to Store the instruction Value!
     new StoreInst(val, aInst, insertPoint);
-    // DataLayout &td = getAnalysis<DataLayout>();
-    bitSize = (float)dataLayout->getTypeSizeInBits(type);
   } else {
     aInst = new AllocaInst(Type::getInt32Ty(*context), "llfi_trace",
                            alloca_insertPoint);
     new StoreInst(ConstantInt::get(IntegerType::get(*context, 32), 0), aInst,
                   insertPoint);
-    bitSize = 32;
-    // errs() << "was here --> " << *type << "\n";
-    // errs() << "Check this --> " << *aInst->getType() << "\n";
   }
-  int byteSize = (int)ceil(bitSize / 8.0);
-  // errs() << "Size for " << *val << ": " << byteSize << "\n";
   return aInst;
 }
 AllocaInst * TraceVisitor::insertStringInstrumentation(std::string& str, Instruction* insertPoint, Instruction* alloca_insertPoint) {
@@ -98,8 +88,6 @@ void TraceVisitor::insertCall(Instruction *inst, Instruction *opCodeInst, Instru
   for (std::size_t i = 0; i != parameters.size(); i++) {
     values[2 * i + 5] = parameters[i];
     int bytesize = getSize((parameters[i])->getAllocatedType());
-    //  errs() << bytesize << " ---------- " << *(parameters[i]->getType()) <<
-    //  "\n";
     values[2 * i + 6] =
         ConstantInt::get(IntegerType::get(*context, 32), bytesize);
   }
@@ -130,7 +118,15 @@ AllocaInst *TraceVisitor::insertIntrinsicInstrumentation(
   return insertStringInstrumentation(str, insertPoint, alloca_insertPoint);
 }
 
-void TraceVisitor::appendInitTyChar(std::stringstream& ss, Value* val) {
+void TraceVisitor::checkSupport(Value* val) {
+  if(val->getType()->isAggregateType()) {
+    errs() << "Warning: aggregate types (Structs or Arrays) are not supported...\n";
+  }
+  if(val->getType()->isVectorTy()) {
+    errs() << "Warning: vector types are not supported...\n";
+  }
+}
+void TraceVisitor::appendInitTyChar(std::stringstream& ss, Value* val) { 
   if (Function *f = dyn_cast<Function>(val)) {
     if(f->getIntrinsicID()) {
       ss << "i";
@@ -143,12 +139,28 @@ void TraceVisitor::appendInitTyChar(std::stringstream& ss, Value* val) {
     ss << "v";
   }
 }
+
+void TraceVisitor::appendTypeChar(std::stringstream& ss, Value* val, bool init) {
+  if(Function *f = dyn_cast<Function>(val)) {
+    if(f->getIntrinsicID()) {
+      ss<<"16";
+    }
+  }
+  int id = static_cast<int>(val->getType()->getTypeID());
+//  errs() << id << " " << val->getType()->isArrayTy() << "\n";
+  if(!init) {
+    ss << ":";
+  }
+  if(id < 10) {
+    ss << "0";
+  }
+  ss << id;
+}
 void TraceVisitor::visitGeneric(Instruction &I) {
   if (!llfi::isLLFIIndexedInst(&I)) {
+//    errs() << "Warning: Found non-indexed instructions...\n";
     return;
   }
-  // errs() << "Dealing with " << I << "...\n";
-  // errs() << "The number of operands:" << I.getNumOperands() << " -- \n";
   Instruction *insertPoint = getInsertPoint(&I);
   Instruction *alloca_insertPoint = getAllocaInsertPoint(&I);
   AllocaInst *aInst =
@@ -156,17 +168,20 @@ void TraceVisitor::visitGeneric(Instruction &I) {
   std::vector<AllocaInst *> values;
   values.push_back(aInst);
   std::stringstream ss;
-  appendInitTyChar(ss, &I);
+  checkSupport(&I);
+  appendTypeChar(ss, &I, true);
   for (std::size_t i = 0; i != I.getNumOperands(); i++) {
+    checkSupport(I.getOperand(i));
+    appendTypeChar(ss,I.getOperand(i), false);
     if (Function *f = dyn_cast<Function>(I.getOperand(i))) {
       if (f->getIntrinsicID()) {
         values.push_back(
             insertIntrinsicInstrumentation(f, insertPoint, alloca_insertPoint));
-        ss << ":i";
+//        ss << ":i";
       }
     }
     else if (BasicBlock* bb = dyn_cast<BasicBlock>(I.getOperand(i))) {
-      errs() << llfi::getLLFIIndexofInst(&I) << "\n";
+      // this operand is a label...
       values.push_back(insertBasicBlockInstrumentation(bb, insertPoint, alloca_insertPoint));
       ss << ":x";
     }
@@ -176,9 +191,9 @@ void TraceVisitor::visitGeneric(Instruction &I) {
                                              I.getOperand(i)->getType(),
                                              insertPoint, alloca_insertPoint));
       if(I.getOperand(i)->getType()->isPointerTy()) {
-        ss << ":*";
+//        ss << ":*";
       } else {
-        ss << ":v";
+//        ss << ":v";
       }
     }
   }
@@ -189,20 +204,19 @@ void TraceVisitor::visitGeneric(Instruction &I) {
 }
 
 AllocaInst* TraceVisitor::insertBasicBlockInstrumentation(BasicBlock* inst, Instruction* insertPoint, Instruction* alloca_insertPoint) {
-   std::stringstream ss;
+  std::stringstream ss;
+  if(!llfi::isLLFIIndexedInst(inst->getFirstNonPHIOrDbgOrLifetime())) {
+    errs() << "Warning: first node " << *inst->getFirstNonPHIOrDbgOrLifetime() <<" is not indexed...\n";
+  }
+  
   ss << llfi::getLLFIIndexofInst(inst->getFirstNonPHIOrDbgOrLifetime());
   std::string str = ss.str();
-  //  std::string str("sdfsdf");
   const char *intrinsicNamePt = str.c_str();
   ArrayRef<uint8_t> intrinsic_name_array_ref((uint8_t *)intrinsicNamePt,
                                              str.size() + 1);
-  // llvm::Value* OPCodeName = llvm::ConstantArray::get(context,
-  // opcode_name_array_ref);
   llvm::Value *intrinsicName =
       llvm::ConstantDataArray::get(*context, intrinsic_name_array_ref);
-  /********************************/
 
-  errs() << *intrinsicName << "\n";
   AllocaInst *aInst = new AllocaInst(intrinsicName->getType(), "llfi_trace",
                                      alloca_insertPoint);
   new StoreInst(intrinsicName, aInst, insertPoint);
@@ -219,7 +233,6 @@ void TraceVisitor::visitCallInst(CallInst &CI) {
   }
 
   visitGeneric(CI);
-  //    CI.print(errs() << " -- \n");
   // only detects direct calls to pthread_create
   if (Function *calledFunc = CI.getCalledFunction()) {
     // shouldnt be done, names of values only for debugging. Take mangling

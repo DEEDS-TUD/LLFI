@@ -50,4 +50,6 @@ private:
   void insertCall(Instruction *, Instruction*, Instruction *, std::vector<AllocaInst *> &,
                   Instruction *);
   void appendInitTyChar(std::stringstream&, Value*);
+  void checkSupport(Value*);
+  void appendTypeChar(std::stringstream&, Value*, bool);
 };
