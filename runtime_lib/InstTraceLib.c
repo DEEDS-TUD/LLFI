@@ -61,7 +61,7 @@ void printTID(char *targetFunc) {
 char *printContent(char *ptr, int size, char* type) {
   int i;
   // Handle endian switch
-  fprintf(OutputFile(), "%s-", type); 
+  fprintf(OutputFile(), "%s-%d-", type, size); 
   if (isLittleEndian()) {
     for (i = size - 1; i >= 0; i--) {
       fprintf(OutputFile(), "%02hhx", ptr[i]);
@@ -103,7 +103,7 @@ void printInstTracer(long instID, char *opcode, int maxPrints, int count, char* 
 
     fprintf(OutputFile(), "%li;", GetTimeStamp());
     fprintf(OutputFile(), "%li;%ld;%s;",
-            pthread_self(), instID, opcode);
+            pthread_self(), instID, opcode,types);
 
 //    char *ptr = va_arg(args, char *);
 //    int size = va_arg(args, int);

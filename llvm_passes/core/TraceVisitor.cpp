@@ -126,25 +126,17 @@ void TraceVisitor::checkSupport(Value* val) {
     errs() << "Warning: vector types are not supported...\n";
   }
 }
-void TraceVisitor::appendInitTyChar(std::stringstream& ss, Value* val) { 
-  if (Function *f = dyn_cast<Function>(val)) {
-    if(f->getIntrinsicID()) {
-      ss << "i";
-    }
-  } else if (BasicBlock* bb = dyn_cast<BasicBlock>(val)) {
-    ss << "x";
-  } else if(val->getType()->isPointerTy()){
-    ss << "*";
-  } else {
-    ss << "v";
-  }
-}
+
 
 void TraceVisitor::appendTypeChar(std::stringstream& ss, Value* val, bool init) {
   if(Function *f = dyn_cast<Function>(val)) {
     if(f->getIntrinsicID()) {
-      ss<<"16";
+      if(!init){
+        ss << ":";
+      }
     }
+    ss << "16";
+    return;
   }
   int id = static_cast<int>(val->getType()->getTypeID());
 //  errs() << id << " " << val->getType()->isArrayTy() << "\n";
@@ -156,6 +148,15 @@ void TraceVisitor::appendTypeChar(std::stringstream& ss, Value* val, bool init) 
   }
   ss << id;
 }
+
+//TODO: Check how to implement this later...
+void TraceVisitor_appendTypeChar(std::stringstream& ss, Value* val, bool init) {
+  std::string type_str;
+  raw_string_ostream rso(type_str);
+  val->getType()->print(rso);
+  ss << rso.str();
+}
+
 void TraceVisitor::visitGeneric(Instruction &I) {
   if (!llfi::isLLFIIndexedInst(&I)) {
 //    errs() << "Warning: Found non-indexed instructions...\n";
@@ -177,24 +178,17 @@ void TraceVisitor::visitGeneric(Instruction &I) {
       if (f->getIntrinsicID()) {
         values.push_back(
             insertIntrinsicInstrumentation(f, insertPoint, alloca_insertPoint));
-//        ss << ":i";
       }
     }
     else if (BasicBlock* bb = dyn_cast<BasicBlock>(I.getOperand(i))) {
       // this operand is a label...
       values.push_back(insertBasicBlockInstrumentation(bb, insertPoint, alloca_insertPoint));
-      ss << ":x";
     }
 
     else {
       values.push_back(insertInstrumentation(I.getOperand(i),
                                              I.getOperand(i)->getType(),
                                              insertPoint, alloca_insertPoint));
-      if(I.getOperand(i)->getType()->isPointerTy()) {
-//        ss << ":*";
-      } else {
-//        ss << ":v";
-      }
     }
   }
   std::string str = ss.str();
