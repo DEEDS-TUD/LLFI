@@ -27,7 +27,6 @@ private:
 
 public:
   TraceVisitor(LLVMContext *, Module *, DataLayout *, int maxtrace);
-  void visitGeneric(Instruction &);
   void visitInstruction(Instruction &);
   // void visitLoadInst(LoadInst &);
   //  void visitFunction(Function &);
@@ -37,6 +36,8 @@ public:
   void visitBranchInst(BranchInst &);
 
 private:
+
+  Instruction* visitGeneric(Instruction &);
   Instruction *getInsertPoint(Instruction *);
   Instruction *getAllocaInsertPoint(Instruction *);
   AllocaInst* insertStringInstrumentation(std::string&, Instruction*, Instruction*);
@@ -51,4 +52,5 @@ private:
                   Instruction *);
   void checkSupport(Value*);
   void appendTypeChar(std::stringstream&, Value*, bool);
+  Value* insertThreadMapping(Value*, Instruction*);
 };

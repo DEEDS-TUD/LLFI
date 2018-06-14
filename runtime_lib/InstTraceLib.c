@@ -44,18 +44,22 @@ FILE *OutputFile() {
   return ofile;
 }
 
+
 long GetTimeStamp() {
   struct timespec t;
   // Check which clock to use (CLOCK_REALTIME??)
   clock_gettime(CLOCK_MONOTONIC, &t);
   return t.tv_nsec;
 }
-
 void printTID(char *targetFunc) {
   OutputFile();
   //fprintf(OutputFile(), " \n");
-  //fprintf(OutputFile(), "#PTID: %li\t Name: %s\tTIMESTAMP: %li\n",
-  //        pthread_self(), targetFunc, GetTimeStamp()); 
+  //fprintf(OutputFile(), "%s;%li;%s;%li\n",
+  //        creatorThread, pthread_self(), targetFunc, GetTimeStamp()); 
+}
+
+void printMapping(pthread_t* createdThread) {
+  fprintf(OutputFile(), "CHECK: %li;%li\n", pthread_self(), *createdThread);
 }
 
 char *printContent(char *ptr, int size, char* type) {
@@ -103,7 +107,7 @@ void printInstTracer(long instID, char *opcode, int maxPrints, int count, char* 
 
     fprintf(OutputFile(), "%li;", GetTimeStamp());
     fprintf(OutputFile(), "%li;%ld;%s;",
-            pthread_self(), instID, opcode,types);
+            pthread_self(), instID, opcode);
 
 //    char *ptr = va_arg(args, char *);
 //    int size = va_arg(args, int);

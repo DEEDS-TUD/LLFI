@@ -67,6 +67,24 @@ AllocaInst *TraceVisitor::insertOpCode(Instruction *inst,
   return insertStringInstrumentation(str, insertPoint, alloca_insertPoint);
 }
 
+Value* TraceVisitor::insertThreadMapping(Value* threadID, Instruction* insertPoint) {
+  std::vector<Value*> values;
+  std::vector<Type*> types;
+
+  values.push_back(threadID);
+  types.push_back(threadID->getType());
+
+  ArrayRef<Type*> typeArrayRef(types);
+
+  FunctionType *funcType = FunctionType::get(Type::getVoidTy(*context), typeArrayRef, false);
+
+  ArrayRef<Value*> valueArrayRef(values);
+
+  Constant* func = module->getOrInsertFunction("printMapping", funcType); 
+  return CallInst::Create(func, valueArrayRef, "", insertPoint);
+
+}
+
 void TraceVisitor::insertCall(Instruction *inst, Instruction *opCodeInst, Instruction* typeString,
                               std::vector<AllocaInst *> &parameters,
                               Instruction *insertPoint) {
@@ -131,22 +149,15 @@ void TraceVisitor::checkSupport(Value* val) {
 void TraceVisitor::appendTypeChar(std::stringstream& ss, Value* val, bool init) {
   if(Function *f = dyn_cast<Function>(val)) {
     if(f->getIntrinsicID()) {
-      if(!init){
-        ss << ":";
-      }
+      ss<< "16:";
+      return;
     }
-    ss << "16";
-    return;
   }
   int id = static_cast<int>(val->getType()->getTypeID());
-//  errs() << id << " " << val->getType()->isArrayTy() << "\n";
-  if(!init) {
-    ss << ":";
-  }
   if(id < 10) {
     ss << "0";
   }
-  ss << id;
+  ss << id << ":";
 }
 
 //TODO: Check how to implement this later...
@@ -157,12 +168,15 @@ void TraceVisitor_appendTypeChar(std::stringstream& ss, Value* val, bool init) {
   ss << rso.str();
 }
 
-void TraceVisitor::visitGeneric(Instruction &I) {
+Instruction* TraceVisitor::visitGeneric(Instruction &I) {
+
+  Instruction *insertPoint = getInsertPoint(&I);
   if (!llfi::isLLFIIndexedInst(&I)) {
 //    errs() << "Warning: Found non-indexed instructions...\n";
-    return;
+    return insertPoint;
   }
-  Instruction *insertPoint = getInsertPoint(&I);
+  int counter = 0;
+ 
   Instruction *alloca_insertPoint = getAllocaInsertPoint(&I);
   AllocaInst *aInst =
       insertInstrumentation(&I, I.getType(), insertPoint, alloca_insertPoint);
@@ -170,7 +184,7 @@ void TraceVisitor::visitGeneric(Instruction &I) {
   values.push_back(aInst);
   std::stringstream ss;
   checkSupport(&I);
-  appendTypeChar(ss, &I, true);
+  appendTypeChar(ss, &I, true);  
   for (std::size_t i = 0; i != I.getNumOperands(); i++) {
     checkSupport(I.getOperand(i));
     appendTypeChar(ss,I.getOperand(i), false);
@@ -178,6 +192,12 @@ void TraceVisitor::visitGeneric(Instruction &I) {
       if (f->getIntrinsicID()) {
         values.push_back(
             insertIntrinsicInstrumentation(f, insertPoint, alloca_insertPoint));
+      }
+      else {
+        std::stringstream s;
+        s << f->getName().str();
+        std::string sss = s.str();
+        values.push_back(insertStringInstrumentation(sss, insertPoint, alloca_insertPoint));
       }
     }
     else if (BasicBlock* bb = dyn_cast<BasicBlock>(I.getOperand(i))) {
@@ -192,9 +212,19 @@ void TraceVisitor::visitGeneric(Instruction &I) {
     }
   }
   std::string str = ss.str();
+  if(CallInst* c =dyn_cast<CallInst>(&I)) {
+    if (Function* ff = c->getCalledFunction()) {
+      if(ff->getName() == "pthread_create") {
+        Value* v = c->getOperand(0);
+        Instruction* instPoint = getInsertPoint(I.getNextNode());
+        insertThreadMapping(v, instPoint);
+      }
+    }
+  }
   AllocaInst *typeString = insertStringInstrumentation(str, insertPoint, alloca_insertPoint);
   AllocaInst *opCodeInst = insertOpCode(&I, insertPoint, alloca_insertPoint);
   insertCall(&I, opCodeInst,typeString, values, insertPoint);
+  return insertPoint;
 }
 
 AllocaInst* TraceVisitor::insertBasicBlockInstrumentation(BasicBlock* inst, Instruction* insertPoint, Instruction* alloca_insertPoint) {
@@ -225,8 +255,7 @@ void TraceVisitor::visitCallInst(CallInst &CI) {
   if (!llfi::isLLFIIndexedInst(&CI)) {
     return;
   }
-
-  visitGeneric(CI);
+  Instruction* pthreadInsert = visitGeneric(CI);
   // only detects direct calls to pthread_create
   if (Function *calledFunc = CI.getCalledFunction()) {
     // shouldnt be done, names of values only for debugging. Take mangling
@@ -234,6 +263,7 @@ void TraceVisitor::visitCallInst(CallInst &CI) {
     if (calledFunc->getName() == "pthread_create") {
       // errs() << "pthread_create function in: "<< CIentified\n";
       // get second argument of pthread_create (the target function)
+      
       if (User *user = dyn_cast<User>(CI.getOperand(2))) {
         // isolate target of pthread_create
         if (Function *target = dyn_cast<Function>(
@@ -242,10 +272,16 @@ void TraceVisitor::visitCallInst(CallInst &CI) {
           // insert right at the beginning of the function
           Instruction *insertPoint =
               target->begin()->getFirstNonPHIOrDbgOrLifetime();
-
+          
           // Allocate space on stack to pass the targetName at runtime
-          const char *targetNamePt = target->getName().data();
-          const std::string str(target->getName());
+          //const char *targetNamePt = target->getName().data();
+          //const std::string str(target->getName());
+          std::string tmp(target->getName());
+          std::stringstream ss;
+          ss << tmp;
+          std::string str = ss.str();
+          const char* targetNamePt = str.c_str();
+
           ArrayRef<uint8_t> targetName_array_ref((uint8_t *)targetNamePt,
                                                  str.size() + 1);
           llvm::Value *targetName =
@@ -254,7 +290,7 @@ void TraceVisitor::visitCallInst(CallInst &CI) {
           AllocaInst *targetNamePtr = new AllocaInst(
               targetName->getType(), "pthread-target", insertPoint);
           new StoreInst(targetName, targetNamePtr, insertPoint);
-
+ 
           // Create function signature
           std::vector<Type *> paramVector(1, targetNamePtr->getType());
           ArrayRef<Type *> paramVector_array_ref(paramVector);
@@ -269,6 +305,7 @@ void TraceVisitor::visitCallInst(CallInst &CI) {
 
           // Create and insert function call
           CallInst::Create(printTIDFunc, argVector_array_ref, "", insertPoint);
+         
         }
       }
       //}
