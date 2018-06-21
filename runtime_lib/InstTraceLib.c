@@ -59,7 +59,7 @@ void printTID(char *targetFunc) {
 }
 
 void printMapping(pthread_t* createdThread) {
-  fprintf(OutputFile(), "CHECK: %li;%li\n", pthread_self(), *createdThread);
+  fprintf(OutputFile(), "Mapping: %li;%li;%li\n", GetTimeStamp(), pthread_self(), *createdThread);
 }
 
 char *printContent(char *ptr, int size, char* type) {
