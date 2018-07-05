@@ -62,6 +62,9 @@ void printMapping(pthread_t* createdThread) {
   fprintf(OutputFile(), "Mapping: %li;%li;%li\n", GetTimeStamp(), pthread_self(), *createdThread);
 }
 
+void printFunctionEntry(char* fName) {
+  fprintf(OutputFile(), "Start: %li;%li;%s\n", GetTimeStamp(), pthread_self(), fName);
+}
 char *printContent(char *ptr, int size, char* type) {
   int i;
   // Handle endian switch

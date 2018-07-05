@@ -20,13 +20,14 @@
 using namespace llvm;
 struct TraceVisitor : public InstVisitor<TraceVisitor> {
 private:
+  Function* function;
   LLVMContext *context;
   Module *module;
   DataLayout *dataLayout;
   int maxtrace;
 
 public:
-  TraceVisitor(LLVMContext *, Module *, DataLayout *, int maxtrace);
+  TraceVisitor(Function*, LLVMContext *, Module *, DataLayout *, int maxtrace);
   void visitInstruction(Instruction &);
   // void visitLoadInst(LoadInst &);
   //  void visitFunction(Function &);
@@ -36,21 +37,23 @@ public:
   void visitBranchInst(BranchInst &);
 
 private:
-
-  Instruction* visitGeneric(Instruction &);
+  Instruction *visitGeneric(Instruction&);
   Instruction *getInsertPoint(Instruction *);
   Instruction *getAllocaInsertPoint(Instruction *);
-  AllocaInst* insertStringInstrumentation(std::string&, Instruction*, Instruction*);
+  AllocaInst *insertStringInstrumentation(std::string &, Instruction *,
+                                          Instruction *);
   AllocaInst *insertInstrumentation(Value *, Type *, Instruction *,
                                     Instruction *);
   AllocaInst *insertIntrinsicInstrumentation(Function *, Instruction *,
                                              Instruction *);
-  AllocaInst *insertBasicBlockInstrumentation(BasicBlock*, Instruction *, Instruction *);
+  AllocaInst *insertBasicBlockInstrumentation(BasicBlock *, Instruction *,
+                                              Instruction *);
   int getSize(Type *type);
   AllocaInst *insertOpCode(Instruction *, Instruction *, Instruction *);
-  void insertCall(Instruction *, Instruction*, Instruction *, std::vector<AllocaInst *> &,
-                  Instruction *);
-  void checkSupport(Value*);
-  void appendTypeChar(std::stringstream&, Value*, bool);
-  Value* insertThreadMapping(Value*, Instruction*);
+  void insertCall(Instruction *, Instruction *, Instruction *,
+                  std::vector<AllocaInst *> &, Instruction *);
+  void checkSupport(Value *);
+  void appendTypeChar(std::stringstream &, Value *, bool);
+  Value *insertThreadMapping(Value *, Instruction *);
+  Value *insertFunctionEntry(Value *, Instruction *);
 };
