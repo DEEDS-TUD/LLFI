@@ -107,13 +107,16 @@ struct InstTrace : public FunctionPass {
 
   virtual bool runOnFunction(Function &F) {
 
-    //TODO Handle global variables at the main function! In case of multiple C/C++ files, they have to be combined into one. Otherwise we won't be able to access all the global variables in the main function...
+    // TODO Handle global variables at the main function! In case of multiple
+    // C/C++ files, they have to be combined into one. Otherwise we won't be
+    // able to access all the global variables in the main function...
     // Create handles to the functions parent module and context
     LLVMContext &context = F.getContext();
     Module *M = F.getParent();
     // errs() << "Running on function " << F.getName() << " # \n";
     DataLayout &dl = getAnalysis<DataLayout>();
-    TraceVisitor tv(&context, M, &dl, maxtrace);
+    
+    TraceVisitor tv(&F, &context, M, &dl, maxtrace);
     tv.visit(F);
     return true;
     // iterate through each basicblock of the function
