@@ -56,4 +56,5 @@ private:
   void appendTypeChar(std::stringstream &, Value *, bool);
   Value *insertThreadMapping(Value *, Instruction *);
   Value *insertFunctionEntry(Value *, Instruction *);
+  Value *insertFunctionCall(std::vector<Value*> &, Instruction*, std::string, bool);
 };

@@ -14,10 +14,30 @@ TraceVisitor::TraceVisitor(Function* func, LLVMContext *ctxt, Module *mod, DataL
   function = func; 
   maxtrace = mtrace;
   Instruction *instPoint = function->begin()->getFirstNonPHIOrDbgOrLifetime();
+  
+  if (func->getName() == "main") {
+    for(Module::global_iterator it = module->global_begin(); it != module->global_end(); ++it) {
+      GlobalVariable * gv = it;
+      std::vector<Value*> values;
+      std::string gvName(gv->getName());
+      values.push_back(insertStringInstrumentation(gvName, instPoint, instPoint));
+      values.push_back(insertInstrumentation(gv, gv->getType(), instPoint, instPoint));
+      int ptrSize = getSize(gv->getType());
+      int size = getSize(gv->getType()->getElementType());
+      Value* v1 = ConstantInt::get(IntegerType::get(*context, 64), ptrSize);
+      Value* v2 = ConstantInt::get(IntegerType::get(*context, 64), size);
+      values.push_back(v1);
+      values.push_back(v2);
+      insertFunctionCall(values, instPoint, "printGlobalVariables", false); 
+      
+//      errs() << *gv << ", " <<  ptrSize << ", " << getSize(gv->getType()->getElementType()) << "\n"; 
+    }
+  }
+
   std::string s(function->getName());
   AllocaInst *v = insertStringInstrumentation(s, instPoint, instPoint);
   insertFunctionEntry(v, instPoint);
-
+  
 }
 int TraceVisitor::getSize(Type *type) {
   return dataLayout->getTypeAllocSize(type);
@@ -91,6 +111,8 @@ Value *TraceVisitor::insertThreadMapping(Value *threadID,
   std::vector<Type *> types;
 
   values.push_back(threadID);
+  return insertFunctionCall(values, insertPoint, "printMapping", false);
+  /*
   types.push_back(threadID->getType());
 
   ArrayRef<Type *> typeArrayRef(types);
@@ -102,14 +124,31 @@ Value *TraceVisitor::insertThreadMapping(Value *threadID,
 
   Constant *func = module->getOrInsertFunction("printMapping", funcType);
   return CallInst::Create(func, valueArrayRef, "", insertPoint);
+  */
 }
 
+Value *TraceVisitor::insertFunctionCall(std::vector<Value*> &parameters, Instruction* insertPoint, std::string fName, bool isVar) {
+  std::vector<Type*> types;
 
+  for (std::size_t i = 0; i != parameters.size(); i++) {
+    types.push_back(parameters[i]->getType());
+  }
+
+  ArrayRef<Type*> typeArrayRef(types);
+  FunctionType *funcType = FunctionType::get(Type::getVoidTy(*context), typeArrayRef, isVar);
+
+  ArrayRef<Value*> valueArrayRef(parameters);
+
+  Constant* func = module->getOrInsertFunction(fName, funcType);
+  return CallInst::Create(func, valueArrayRef, "", insertPoint);
+}
 Value *TraceVisitor::insertFunctionEntry(Value* fName, Instruction* insertPoint) {
   std::vector<Value *> values;
-  std::vector<Type *> types;
+ // std::vector<Type *> types;
 
   values.push_back(fName);
+  return insertFunctionCall(values, insertPoint, "printFunctionEntry", false);
+  /*
   types.push_back(fName->getType());
 
   ArrayRef<Type *> typeArrayRef(types);
@@ -121,7 +160,7 @@ Value *TraceVisitor::insertFunctionEntry(Value* fName, Instruction* insertPoint)
 
   Constant *func = module->getOrInsertFunction("printFunctionEntry", funcType);
   return CallInst::Create(func, valueArrayRef, "", insertPoint);
-
+*/
 }
 void TraceVisitor::insertCall(Instruction *inst, Instruction *opCodeInst,
                               Instruction *typeString,

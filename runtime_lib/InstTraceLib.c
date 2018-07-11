@@ -65,7 +65,7 @@ void printMapping(pthread_t* createdThread) {
 void printFunctionEntry(char* fName) {
   fprintf(OutputFile(), "Start: %li;%li;%s\n", GetTimeStamp(), pthread_self(), fName);
 }
-char *printContent(char *ptr, int size, char* type) {
+void printContent(char *ptr, int size, char* type) {
   int i;
   // Handle endian switch
   fprintf(OutputFile(), "%s-%d-", type, size); 
@@ -79,6 +79,15 @@ char *printContent(char *ptr, int size, char* type) {
     }
   }
 }
+
+void printGlobalVariables(char* name, char* ptr, int ptrSize, int size) {
+  fprintf(OutputFile(), "GlobalVariables: %s;",name);
+  char* type = "14";
+  printContent(ptr, ptrSize, type);
+  fprintf(OutputFile(), ";%d\n", size);
+//  fprintf(OutputFile(), ";"
+}
+
 char* getNextType(char* res, char* types, int index) {
   if(strlen(types) < index*3) {
     fprintf(stderr, "Warning: wrong type string format...\n");
