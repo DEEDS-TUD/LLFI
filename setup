@@ -15,7 +15,8 @@ List of options:
 
 
 --help(-h): show help information
---no_gui: Add this option if you do not want GUI.
+--no_gui: Add this option if you do not want GUI (default).
+--gui: Add this option if you do want GUI.
 --runTests: Add this option if you want to run all regression tests after building LLFI.
 """
 
@@ -41,7 +42,7 @@ optional_configs = {
   "JAVA_HOME_DIR": "",
 }
 
-gui_build_flag = True
+gui_build_flag = False
 run_tests_flag = False
 
 def usage(msg = None):
@@ -74,6 +75,8 @@ def parseArgs(args):
         usage()
       elif arg == "--no_gui":
         gui_build_flag = False
+      elif arg == "--gui":
+        gui_build_flag = True
       elif arg == "--runTests":
         run_tests_flag = True
       else:
