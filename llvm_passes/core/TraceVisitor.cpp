@@ -14,37 +14,59 @@ TraceVisitor::TraceVisitor(Function* func, LLVMContext *ctxt, Module *mod, DataL
   function = func; 
   maxtrace = mtrace;
   Instruction *instPoint = function->begin()->getFirstNonPHIOrDbgOrLifetime();
-  
+    
   if (func->getName() == "main") {
     for(Module::global_iterator it = module->global_begin(); it != module->global_end(); ++it) {
       GlobalVariable * gv = it;
       std::vector<Value*> values;
       std::string gvName(gv->getName());
       values.push_back(insertStringInstrumentation(gvName, instPoint, instPoint));
-      values.push_back(insertInstrumentation(gv, gv->getType(), instPoint, instPoint));
+//      values.push_back(getStringValue(gvName));
+      values.push_back(gv);
       int ptrSize = getSize(gv->getType());
       int size = getSize(gv->getType()->getElementType());
-      Value* v1 = ConstantInt::get(IntegerType::get(*context, 64), ptrSize);
-      Value* v2 = ConstantInt::get(IntegerType::get(*context, 64), size);
-      values.push_back(v1);
-      values.push_back(v2);
-      insertFunctionCall(values, instPoint, "printGlobalVariables", false); 
+//      Value* v1 = ConstantInt::get(IntegerType::get(*context, 32), ptrSize);
+//      Value* v2 = ConstantInt::get(IntegerType::get(*context, 32), size);
+      values.push_back(getIntValue(ptrSize));
+      values.push_back(getIntValue(size));
+      //errs() << *getIntValue(ptrSize) << ", " << *getIntValue(size) << "\n";
+      insertFunctionCall(values, values.size(), false, instPoint, "printGlobalVariables", false); 
       
 //      errs() << *gv << ", " <<  ptrSize << ", " << getSize(gv->getType()->getElementType()) << "\n"; 
     }
   }
-
+  std::vector<Value*> values;
   std::string s(function->getName());
   AllocaInst *v = insertStringInstrumentation(s, instPoint, instPoint);
-  insertFunctionEntry(v, instPoint);
+  values.push_back(v);
+  values.push_back(ConstantInt::get(IntegerType::get(*context, 32), func->arg_size()));
+  for(Function::arg_iterator it = func->arg_begin(); it != func->arg_end(); ++it) {
+    Value* arg = it;
+    values.push_back(arg);
+  }
+  insertFunctionCall(values, 2, true, instPoint, "printFunctionEntryArgs", true);
+//  insertFunctionEntry(v, instPoint);
   
+}
+
+Value* TraceVisitor::getLongValue(long l) {
+  return ConstantInt::get(IntegerType::get(*context, 64), l);
+}
+Value* TraceVisitor::getIntValue(int i) {
+  return ConstantInt::get(IntegerType::get(*context, 32), i);
 }
 int TraceVisitor::getSize(Type *type) {
   return dataLayout->getTypeAllocSize(type);
   //  float bitSize = (float)dataLayout->getTypeSizeInBits(type);
   //  return (int)ceil(bitSize / 8.0);
 }
-
+Value* TraceVisitor::getInstrumentationValue(Value* val) {
+  if (val->getType() != Type::getVoidTy(*context)) {
+    return val;
+  } else {
+    return ConstantInt::get(IntegerType::get(*context, 32), 0);
+  }
+}
 AllocaInst *
 TraceVisitor::insertInstrumentation(Value *val, Type *type,
                                     Instruction *insertPoint,
@@ -63,6 +85,12 @@ TraceVisitor::insertInstrumentation(Value *val, Type *type,
   }
   return aInst;
 }
+
+Value* TraceVisitor::getStringValue(std::string &str) {
+  const char* content = str.c_str();
+  ArrayRef<uint8_t> array_ref((uint8_t *) content, str.size() +1);
+  return llvm::ConstantDataArray::get(*context, array_ref);
+}
 AllocaInst *
 TraceVisitor::insertStringInstrumentation(std::string &str,
                                           Instruction *insertPoint,
@@ -79,6 +107,37 @@ TraceVisitor::insertStringInstrumentation(std::string &str,
   new StoreInst(value, aInst, insertPoint);
   return aInst;
 }
+
+Value* TraceVisitor::GetOpcodeValue(Instruction *inst) {
+  std::string str(inst->getOpcodeName());
+  if (isa<CallInst>(inst)) {
+    CallInst *ci = dyn_cast<CallInst>(inst);
+    Function *f = ci->getCalledFunction();
+    std::string name("FUNCPTR-p");
+    if(f) {
+      name = f->getName();
+    }
+    str = str + "-" + name;
+    if(f){
+      if (f->isDeclaration()) {
+        str = str + "-u";
+      } else {
+        str = str + "-d";
+      }
+    }
+  } else if (isa<ReturnInst>(inst)) {
+    if (Function *f = dyn_cast<Function>(inst->getParent()->getParent())) {
+      std::string name("FUNCPTR-p");
+      if(f) {
+        name = f->getName();
+      }
+      str = str + "-" + name;
+    }
+  }
+  return getStringValue(str);
+
+}
+
 AllocaInst *TraceVisitor::insertOpCode(Instruction *inst,
                                        Instruction *insertPoint,
                                        Instruction *alloca_insertPoint) {
@@ -89,21 +148,30 @@ AllocaInst *TraceVisitor::insertOpCode(Instruction *inst,
   if (isa<CallInst>(inst)) {
     CallInst *ci = dyn_cast<CallInst>(inst);
     Function *f = ci->getCalledFunction();
-    std::string name(f->getName());
+    std::string name("FUNCPTR-p");
+    if(f) {
+      name = f->getName();
+    }
     str = str + "-" + name;
-    if (f->isDeclaration()) {
-      str = str + "-u";
-    } else {
-      str = str + "-d";
+    if(f){
+      if (f->isDeclaration()) {
+        str = str + "-u";
+      } else {
+        str = str + "-d";
+      }
     }
   } else if (isa<ReturnInst>(inst)) {
     if (Function *f = dyn_cast<Function>(inst->getParent()->getParent())) {
-      std::string name(f->getName());
+      std::string name("FUNCPTR-p");
+      if(f) {
+        name = f->getName();
+      }
       str = str + "-" + name;
     }
   }
   return insertStringInstrumentation(str, insertPoint, alloca_insertPoint);
 }
+
 
 Value *TraceVisitor::insertThreadMapping(Value *threadID,
                                          Instruction *insertPoint) {
@@ -111,7 +179,7 @@ Value *TraceVisitor::insertThreadMapping(Value *threadID,
   std::vector<Type *> types;
 
   values.push_back(threadID);
-  return insertFunctionCall(values, insertPoint, "printMapping", false);
+  return insertFunctionCall(values, values.size(), false, insertPoint, "printMapping", false);
   /*
   types.push_back(threadID->getType());
 
@@ -127,8 +195,18 @@ Value *TraceVisitor::insertThreadMapping(Value *threadID,
   */
 }
 
-Value *TraceVisitor::insertFunctionCall(std::vector<Value*> &parameters, Instruction* insertPoint, std::string fName, bool isVar) {
+Value *TraceVisitor::insertFunctionCall(std::vector<Value*> &values, int offset, bool isSize, Instruction* insertPoint, std::string fName, bool isVar) {
   std::vector<Type*> types;
+
+  std::vector<Value*> parameters;
+   
+  
+  for (std::size_t i = 0; i != values.size(); i++) {
+    parameters.push_back(values[i]);
+    if (i >= offset && isSize) {
+      parameters.push_back(getIntValue(getSize(values[i]->getType())));
+    }
+  }
 
   for (std::size_t i = 0; i != parameters.size(); i++) {
     types.push_back(parameters[i]->getType());
@@ -136,18 +214,19 @@ Value *TraceVisitor::insertFunctionCall(std::vector<Value*> &parameters, Instruc
 
   ArrayRef<Type*> typeArrayRef(types);
   FunctionType *funcType = FunctionType::get(Type::getVoidTy(*context), typeArrayRef, isVar);
-
   ArrayRef<Value*> valueArrayRef(parameters);
 
   Constant* func = module->getOrInsertFunction(fName, funcType);
-  return CallInst::Create(func, valueArrayRef, "", insertPoint);
+  CallInst* ci = CallInst::Create(func, valueArrayRef, "", insertPoint);
+//  errs() << *ci << "\n";
+  return ci;
 }
 Value *TraceVisitor::insertFunctionEntry(Value* fName, Instruction* insertPoint) {
   std::vector<Value *> values;
  // std::vector<Type *> types;
 
   values.push_back(fName);
-  return insertFunctionCall(values, insertPoint, "printFunctionEntry", false);
+  return insertFunctionCall(values, values.size(), false, insertPoint, "printFunctionEntry", false);
   /*
   types.push_back(fName->getType());
 
@@ -216,6 +295,12 @@ void TraceVisitor::insertCall(Instruction *inst, Instruction *opCodeInst,
   CallInst::Create(traceFunc, traceArgs_array_ref, "", insertPoint);
 }
 
+Value* TraceVisitor::getIntrinsicInstrumentation(Function *inst) {
+  std::stringstream ss;
+  ss << inst->getIntrinsicID();
+  std::string str = ss.str();
+  return getStringValue(str);
+}
 AllocaInst *TraceVisitor::insertIntrinsicInstrumentation(
     Function *inst, Instruction *insertPoint, Instruction *alloca_insertPoint) {
 
@@ -285,11 +370,14 @@ AllocaInst *aInst =
         values.push_back(
             insertIntrinsicInstrumentation(f, insertPoint, alloca_insertPoint));
       } else {
+        values.push_back(insertInstrumentation(I.getOperand(i), I.getOperand(i)->getType(), insertPoint, alloca_insertPoint));
+        /*
         std::stringstream s;
         s << f->getName().str();
         std::string sss = s.str();
         values.push_back(
             insertStringInstrumentation(sss, insertPoint, alloca_insertPoint));
+            */
       }
     } else if (BasicBlock *bb = dyn_cast<BasicBlock>(I.getOperand(i))) {
       // this operand is a label...
@@ -337,6 +425,20 @@ AllocaInst *aInst =
   return insertPoint;
 }
 
+Value* TraceVisitor::getBasicBlockValue(BasicBlock *inst) {
+  std::stringstream ss;
+  if (!llfi::isLLFIIndexedInst(inst->getFirstNonPHIOrDbgOrLifetime())) {
+    errs() << "Warning: first node " << *inst->getFirstNonPHIOrDbgOrLifetime()
+           << " is not indexed...\n";
+  }
+
+  ss << llfi::getLLFIIndexofInst(inst->getFirstNonPHIOrDbgOrLifetime());
+  std::string str = ss.str();
+  const char *intrinsicNamePt = str.c_str();
+  ArrayRef<uint8_t> intrinsic_name_array_ref((uint8_t *)intrinsicNamePt,
+                                             str.size() + 1);
+  return llvm::ConstantDataArray::get(*context, intrinsic_name_array_ref);
+}
 AllocaInst *
 TraceVisitor::insertBasicBlockInstrumentation(BasicBlock *inst,
                                               Instruction *insertPoint,

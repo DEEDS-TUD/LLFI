@@ -56,5 +56,12 @@ private:
   void appendTypeChar(std::stringstream &, Value *, bool);
   Value *insertThreadMapping(Value *, Instruction *);
   Value *insertFunctionEntry(Value *, Instruction *);
-  Value *insertFunctionCall(std::vector<Value*> &, Instruction*, std::string, bool);
+  Value *insertFunctionCall(std::vector<Value*> &,int, bool, Instruction*, std::string, bool);
+  Value* getInstrumentationValue(Value*);
+  Value* getStringValue(std::string &);
+  Value* getIntrinsicInstrumentation(Function*);
+  Value* getBasicBlockValue(BasicBlock*);
+  Value* GetOpcodeValue(Instruction*);
+  Value* getLongValue(long);
+  Value* getIntValue(int);
 };

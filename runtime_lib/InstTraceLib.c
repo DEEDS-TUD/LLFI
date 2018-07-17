@@ -62,6 +62,7 @@ void printMapping(pthread_t* createdThread) {
   fprintf(OutputFile(), "Mapping: %li;%li;%li\n", GetTimeStamp(), pthread_self(), *createdThread);
 }
 
+
 void printFunctionEntry(char* fName) {
   fprintf(OutputFile(), "Start: %li;%li;%s\n", GetTimeStamp(), pthread_self(), fName);
 }
@@ -79,13 +80,31 @@ void printContent(char *ptr, int size, char* type) {
     }
   }
 }
-
+void _printContent(char *ptr, int size, char* type) {
+  int i;
+  printf("%s-%d%p\n", type, size, ptr);
+  // Handle endian switch
+  fprintf(OutputFile(), "%s-%d-", type, size); 
+  if (isLittleEndian()) {
+    for (i = size - 1; i >= 0; i--) {
+      printf("%d\n", i);
+      fprintf(OutputFile(), "%02hhx", ptr[i]);
+      return;
+    }
+  } else {
+    printf("SDSDF");
+    for (i = 0; i < size; i++) {
+      printf("%d", i);
+      fprintf(OutputFile(), "%02hhx", ptr[i]);
+    }
+  }
+}
 void printGlobalVariables(char* name, char* ptr, int ptrSize, int size) {
   fprintf(OutputFile(), "GlobalVariables: %s;",name);
   char* type = "14";
   printContent(ptr, ptrSize, type);
   fprintf(OutputFile(), ";%d\n", size);
-//  fprintf(OutputFile(), ";"
+//  fprintf(OutputFile(), ";\n");
 }
 
 char* getNextType(char* res, char* types, int index) {
@@ -96,6 +115,23 @@ char* getNextType(char* res, char* types, int index) {
   res[2] = '\0';
   return res;
 }
+
+void printFunctionEntryArgs(char* fName, int count, ...) {
+  int i = 0;
+  fprintf(OutputFile(), "Start: %s;", fName);
+  va_list args;
+  va_start(args,count);
+  printf("%s:\n", fName);
+  for (i = 0; i < count; i++) {
+    char* ar = va_arg(args, char*);
+    printf("PTR: %p\n", ar);
+    int size = va_arg(args, int);
+    printf("SIZE: %d\n", size);
+    _printContent(ar, size, "14");
+  }
+  va_end(args); 
+}
+
 static long instCount = 0;
 static long cutOff = 0;
 void printInstTracer(long instID, char *opcode, int maxPrints, int count, char* types, char* val, int v_size, ...) {
