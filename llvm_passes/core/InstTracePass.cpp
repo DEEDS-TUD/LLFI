@@ -117,6 +117,7 @@ struct InstTrace : public FunctionPass {
     DataLayout &dl = getAnalysis<DataLayout>();
     
     TraceVisitor tv(&F, &context, M, &dl, maxtrace);
+    errs() << "Dealing with " << F.getName() << "\n";
     tv.visit(F);
     return true;
     // iterate through each basicblock of the function

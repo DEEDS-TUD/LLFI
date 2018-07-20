@@ -376,6 +376,9 @@ void TraceVisitor_appendTypeChar(std::stringstream &ss, Value *val, bool init) {
   ss << rso.str();
 }
 
+void TraceVisitor::visitPHINode(PHINode& pn) {
+
+}
 Instruction *TraceVisitor::visitGeneric(Instruction& I) {
   
   Instruction* alloca_insertPoint = getAllocaInsertPoint(&I);
@@ -386,6 +389,9 @@ Instruction *TraceVisitor::visitGeneric(Instruction& I) {
     //    errs() << "Warning: Found non-indexed instructions...\n";
     return insertPoint;
   }
+
+//  errs() << "Instruction: " << I << "\n";
+//  errs() << "Index: " << llfi::getLLFIIndexofInst(&I) << "\n";
   int counter = 0;
   std::vector<AllocaInst *> values;
   std::stringstream ss;
@@ -464,7 +470,6 @@ Value* TraceVisitor::getBasicBlockValue(BasicBlock *inst) {
     errs() << "Warning: first node " << *inst->getFirstNonPHIOrDbgOrLifetime()
            << " is not indexed...\n";
   }
-
   ss << llfi::getLLFIIndexofInst(inst->getFirstNonPHIOrDbgOrLifetime());
   std::string str = ss.str();
   const char *intrinsicNamePt = str.c_str();
@@ -473,16 +478,28 @@ Value* TraceVisitor::getBasicBlockValue(BasicBlock *inst) {
   return llvm::ConstantDataArray::get(*context, intrinsic_name_array_ref);
 }
 AllocaInst *
-TraceVisitor::insertBasicBlockInstrumentation(BasicBlock *inst,
+TraceVisitor::insertBasicBlockInstrumentation(BasicBlock *bb,
                                               Instruction *insertPoint,
                                               Instruction *alloca_insertPoint) {
   std::stringstream ss;
-  if (!llfi::isLLFIIndexedInst(inst->getFirstNonPHIOrDbgOrLifetime())) {
-    errs() << "Warning: first node " << *inst->getFirstNonPHIOrDbgOrLifetime()
+  if (!llfi::isLLFIIndexedInst(bb->getFirstNonPHIOrDbgOrLifetime())) {
+    errs() << "Warning: first node " << *bb->getFirstNonPHIOrDbgOrLifetime()
            << " is not indexed...\n";
   }
-
-  ss << llfi::getLLFIIndexofInst(inst->getFirstNonPHIOrDbgOrLifetime());
+  Instruction* inst = (Instruction*) bb;
+  for (BasicBlock::iterator it = bb->getFirstInsertionPt(), it_end = bb->end(); it != it_end; ++it) {
+    if(llfi::isLLFIIndexedInst(&*it)) {
+      inst = &*it;
+      break;
+    } 
+  }
+  
+//  errs() << "BB: " << *bb << "\n";
+//  errs() << "Insert: " << *insertPoint << "\n";
+//  errs() << "Index: " << llfi::getLLFIIndexofInst(inst) << "\n";
+//  errs() << "Alloca: " << *alloca_insertPoint << "\n";
+//  errs() << "CHECK :" << *inst << "\n";
+  ss << llfi::getLLFIIndexofInst(inst);
   std::string str = ss.str();
   const char *intrinsicNamePt = str.c_str();
   ArrayRef<uint8_t> intrinsic_name_array_ref((uint8_t *)intrinsicNamePt,

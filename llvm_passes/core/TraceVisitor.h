@@ -35,6 +35,7 @@ public:
   // void visitStoreInst(StoreInst &);
   void visitCallInst(CallInst &);
   void visitBranchInst(BranchInst &);
+  void visitPHINode(PHINode &);
 
 private:
   Instruction *visitGeneric(Instruction&);
