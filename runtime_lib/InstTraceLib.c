@@ -109,6 +109,7 @@ void printFunctionEntryArgs(char* fName, int count, ...) {
     printContent(ar, size, "14");
   }
   va_end(args); 
+  fprintf(OutputFile(), "\n");
 }
 
 static long instCount = 0;
