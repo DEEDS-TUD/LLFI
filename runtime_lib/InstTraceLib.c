@@ -59,12 +59,12 @@ void printTID(char *targetFunc) {
 }
 
 void printMapping(pthread_t* createdThread) {
-  fprintf(OutputFile(), "Mapping: %li;%li;%li\n", GetTimeStamp(), pthread_self(), *createdThread);
+  fprintf(OutputFile(), "Mapping: %li,%li,%li\n", GetTimeStamp(), pthread_self(), *createdThread);
 }
 
 
 void printFunctionEntry(char* fName) {
-  fprintf(OutputFile(), "Start: %li;%li;%s\n", GetTimeStamp(), pthread_self(), fName);
+  fprintf(OutputFile(), "Start: %li,%li,%s\n", GetTimeStamp(), pthread_self(), fName);
 }
 void printContent(char *ptr, int size, char* type) {
   int i;
@@ -82,11 +82,11 @@ void printContent(char *ptr, int size, char* type) {
 }
 
 void printGlobalVariables(char* name, char* ptr, int ptrSize, int size) {
-  fprintf(OutputFile(), "GlobalVariables: %s;",name);
+  fprintf(OutputFile(), "GlobalVariables: %s,",name);
   char* type = "14";
   printContent(ptr, ptrSize, type);
-  fprintf(OutputFile(), ";%d\n", size);
-//  fprintf(OutputFile(), ";\n");
+  fprintf(OutputFile(), ",%d\n", size);
+//  fprintf(OutputFile(), ",\n");
 }
 
 char* getNextType(char* res, char* types, int index) {
@@ -100,10 +100,12 @@ char* getNextType(char* res, char* types, int index) {
 
 void printFunctionEntryArgs(char* fName, int count, ...) {
   int i = 0;
-  fprintf(OutputFile(), "Start: %s;", fName);
+//  fprintf(OutputFile(), "Start: ");
+  fprintf(OutputFile(), "%li,%li,0,call-%s-d,00-4-00000000", GetTimeStamp(), pthread_self(), fName);
   va_list args;
   va_start(args,count);
   for (i = 0; i < count; i++) {
+    fprintf(OutputFile(), ",");
     char* ar = va_arg(args, char*);
     int size = va_arg(args, int);
     printContent(ar, size, "14");
@@ -133,8 +135,8 @@ void printInstTracer(long instID, char *opcode, int maxPrints, int count, char* 
       ((start_tracing_flag == TRACING_FI_RUN_START_TRACING) &&
        (instCount < cutOff))) {
 
-    fprintf(OutputFile(), "%li;", GetTimeStamp());
-    fprintf(OutputFile(), "%li;%ld;%s;",
+    fprintf(OutputFile(), "%li,", GetTimeStamp());
+    fprintf(OutputFile(), "%li,%ld,%s,",
             pthread_self(), instID, opcode);
 
 //    char *ptr = va_arg(args, char *);
@@ -142,7 +144,7 @@ void printInstTracer(long instID, char *opcode, int maxPrints, int count, char* 
     char res[3];
     printContent(val, v_size, getNextType(res, types, 0));
     for (i = 1; i < count; ++i) {
-      fprintf(OutputFile(), ";");
+      fprintf(OutputFile(), ",");
       char *opPtr = va_arg(args, char *);
       int opSize = va_arg(args, int);
       printContent(opPtr, opSize, getNextType(res, types, i));

@@ -19,6 +19,10 @@ TraceVisitor::TraceVisitor(Function* func, LLVMContext *ctxt, Module *mod, DataL
       GlobalVariable * gv = it;
       std::vector<Value*> values;
       std::string gvName(gv->getName());
+      if(gvName == "llvm.global_ctors" || gvName == "llvm.global_dtors"){
+        // Might have to add more globals as exceptions
+        continue;
+      }
       values.push_back(insertStringInstrumentation(gvName, instPoint, instPoint));
 //      values.push_back(getStringValue(gvName));
       values.push_back(insertInstrumentation(gv, gv->getType(), instPoint, instPoint));
@@ -119,7 +123,7 @@ Value* TraceVisitor::GetOpcodeValue(Instruction *inst) {
   if (isa<CallInst>(inst)) {
     CallInst *ci = dyn_cast<CallInst>(inst);
     Function *f = ci->getCalledFunction();
-    std::string name("FUNCPTR-p");
+    std::string name("FUNCPTR-d");
     if(f) {
       name = f->getName();
     }
@@ -133,7 +137,7 @@ Value* TraceVisitor::GetOpcodeValue(Instruction *inst) {
     }
   } else if (isa<ReturnInst>(inst)) {
     if (Function *f = dyn_cast<Function>(inst->getParent()->getParent())) {
-      std::string name("FUNCPTR-p");
+      std::string name("FUNCPTR-d");
       if(f) {
         name = f->getName();
       }
@@ -154,7 +158,7 @@ AllocaInst *TraceVisitor::insertOpCode(Instruction *inst,
   if (isa<CallInst>(inst)) {
     CallInst *ci = dyn_cast<CallInst>(inst);
     Function *f = ci->getCalledFunction();
-    std::string name("FUNCPTR-p");
+    std::string name("FUNCPTR-d");
     if(f) {
       name = f->getName();
     }
@@ -168,7 +172,7 @@ AllocaInst *TraceVisitor::insertOpCode(Instruction *inst,
     }
   } else if (isa<ReturnInst>(inst)) {
     if (Function *f = dyn_cast<Function>(inst->getParent()->getParent())) {
-      std::string name("FUNCPTR-p");
+      std::string name("FUNCPTR-d");
       if(f) {
         name = f->getName();
       }
@@ -401,7 +405,12 @@ AllocaInst *aInst =
     values.push_back(aInst);
     checkSupport(&I);
   appendTypeChar(ss, &I, true);
-    for (std::size_t i = 0; i != I.getNumOperands(); i++) {
+    int end = I.getNumOperands();
+    if(isa<CallInst>(&I)) {
+      // ignore the last operand in function calls. It only contains the function that is being called...
+      end--;
+    }
+    for (std::size_t i = 0; i != end; i++) {
     checkSupport(I.getOperand(i));
     appendTypeChar(ss, I.getOperand(i), false);
     if (Function *f = dyn_cast<Function>(I.getOperand(i))) {
@@ -410,13 +419,6 @@ AllocaInst *aInst =
             insertIntrinsicInstrumentation(f, insertPoint, alloca_insertPoint));
       } else {
         values.push_back(insertInstrumentation(I.getOperand(i), I.getOperand(i)->getType(), insertPoint, alloca_insertPoint));
-        /*
-        std::stringstream s;
-        s << f->getName().str();
-        std::string sss = s.str();
-        values.push_back(
-            insertStringInstrumentation(sss, insertPoint, alloca_insertPoint));
-            */
       }
     } else if (BasicBlock *bb = dyn_cast<BasicBlock>(I.getOperand(i))) {
       // this operand is a label...
