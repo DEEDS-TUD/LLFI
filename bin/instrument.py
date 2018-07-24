@@ -63,6 +63,7 @@ options = {
   "readable": False,
   "verbose": False,
   "IRonly": False,
+  "profonly": False,
   "genDotGraph": False,
 }
 
@@ -104,6 +105,8 @@ def parseArgs(args):
         options["verbose"] = True
       elif arg == "--IRonly":
         options["IRonly"] = True
+      elif arg == "--profonly":
+        options["profonly"] = True
       elif arg == "--help" or arg == "-h":
         usage()
       else:
@@ -343,7 +346,8 @@ def compileProg():
       execlist.append("-S")
     retcode = execCompilation(execlist)
 
-  if retcode == 0:
+  do_fi = not (options['IRonly'] and options['profonly'])
+  if retcode == 0 and do_fi:
     execlist = [optbin, '-load', llfilib, '-faultinjectionpass']
     execlist2 = ['-o', fifile + _suffixOfIR(), llfi_indexed_file + _suffixOfIR()]
     execlist.extend(compileOptions)
