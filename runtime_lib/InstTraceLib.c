@@ -45,11 +45,11 @@ FILE *OutputFile() {
 }
 
 
-long GetTimeStamp() {
+struct timespec GetTimeStamp() {
   struct timespec t;
   // Check which clock to use (CLOCK_REALTIME??)
   clock_gettime(CLOCK_MONOTONIC, &t);
-  return t.tv_nsec;
+  return t;
 }
 void printTID(char *targetFunc) {
   OutputFile();
@@ -59,13 +59,11 @@ void printTID(char *targetFunc) {
 }
 
 void printMapping(pthread_t* createdThread) {
-  fprintf(OutputFile(), "Mapping: %li,%li,%li\n", GetTimeStamp(), pthread_self(), *createdThread);
+  struct timespec t = GetTimeStamp();
+  fprintf(OutputFile(), "Mapping: %lld%.9ld,%li,%li\n", (long long) t.tv_sec, t.tv_nsec, pthread_self(), *createdThread);
 }
 
 
-void printFunctionEntry(char* fName) {
-  fprintf(OutputFile(), "Start: %li,%li,%s\n", GetTimeStamp(), pthread_self(), fName);
-}
 void printContent(char *ptr, int size, char* type) {
   int i;
   // Handle endian switch
@@ -98,17 +96,19 @@ char* getNextType(char* res, char* types, int index) {
   return res;
 }
 
-void printFunctionEntryArgs(char* fName, int count, ...) {
+void printFunctionEntryArgs(char* fName, char* types, int count, ...) {
   int i = 0;
 //  fprintf(OutputFile(), "Start: ");
-  fprintf(OutputFile(), "%li,%li,0,call-%s-d,00-4-00000000", GetTimeStamp(), pthread_self(), fName);
+   struct timespec t = GetTimeStamp();
+  fprintf(OutputFile(), "%lld%.9ld,%li,0,call-%s-d,00-4-00000000", (long long) t.tv_sec, t.tv_nsec, pthread_self(), fName);
   va_list args;
   va_start(args,count);
+  char res[3];
   for (i = 0; i < count; i++) {
     fprintf(OutputFile(), ",");
     char* ar = va_arg(args, char*);
     int size = va_arg(args, int);
-    printContent(ar, size, "14");
+    printContent(ar, size, getNextType(res, types, i));
   }
   va_end(args); 
   fprintf(OutputFile(), "\n");
@@ -135,7 +135,8 @@ void printInstTracer(long instID, char *opcode, int maxPrints, int count, char* 
       ((start_tracing_flag == TRACING_FI_RUN_START_TRACING) &&
        (instCount < cutOff))) {
 
-    fprintf(OutputFile(), "%li,", GetTimeStamp());
+    struct timespec t = GetTimeStamp();
+    fprintf(OutputFile(), "%lld%.9ld,", (long long) t.tv_sec, t.tv_nsec);
     fprintf(OutputFile(), "%li,%ld,%s,",
             pthread_self(), instID, opcode);
 

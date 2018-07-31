@@ -38,18 +38,23 @@ TraceVisitor::TraceVisitor(Function* func, LLVMContext *ctxt, Module *mod, DataL
 //      errs() << *gv << ", " <<  ptrSize << ", " << getSize(gv->getType()->getElementType()) << "\n"; 
     }
   }
+  std::stringstream type_st;
   std::vector<Value*> values;
   std::string s(function->getName());
   AllocaInst *v = insertStringInstrumentation(s, instPoint, instPoint);
   values.push_back(v);
   values.push_back(ConstantInt::get(IntegerType::get(*context, 32), func->arg_size()));
   for(Function::arg_iterator it = func->arg_begin(); it != func->arg_end(); ++it) {
+    appendTypeChar(type_st, it, false);
     Value* arg = it;
     AllocaInst* alc_arg= insertInstrumentation(arg, arg->getType(), instPoint, instPoint);
     values.push_back(alc_arg);
     int vSize = getSize(alc_arg->getAllocatedType());
     values.push_back(getIntValue(vSize));
   }
+  std::vector<Value*>::iterator it = values.begin();
+  std::string typ = type_st.str();
+  values.insert(it + 1, insertStringInstrumentation(typ, instPoint, instPoint));
   insertFunctionCall(values, instPoint, "printFunctionEntryArgs", true);
   //insertFunctionEntry(v, instPoint);
   
