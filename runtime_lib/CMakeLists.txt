@@ -16,5 +16,5 @@ add_executable(InjectorScanner
     InjectorScanner.cpp
 )
 
-TARGET_LINK_LIBRARIES(llfi-rt pthread)
+TARGET_LINK_LIBRARIES(llfi-rt dl pthread)
 TARGET_LINK_LIBRARIES(InjectorScanner llfi-rt)

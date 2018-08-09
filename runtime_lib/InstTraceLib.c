@@ -12,6 +12,7 @@ instTrace LLVM
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
+#include <dlfcn.h>
 
 #include "Utils.h"
 #include "unistd.h"
@@ -20,14 +21,49 @@ instTrace LLVM
 // flush often!
 static pthread_key_t fileKey;
 static pthread_once_t fileKey_once = PTHREAD_ONCE_INIT;
+
+static pthread_key_t idKey;
+static pthread_once_t idKey_once = PTHREAD_ONCE_INIT;
+
+static pthread_mutex_t id_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 extern long g_flag;
+static pthread_t ID = 0;
 #define DELIMTER ':';
 
+struct map_message {
+  pthread_t creator;
+  void* (*routine) (void*);
+  void* args;
+};
+typedef struct map_message message;
 // destructor function which closes respective file if thread terminates
 static void cleanAfterThread(void *ofile) { fclose((FILE *)ofile); }
+
+static void freeID(void* id) {
+  free(id);
+}
 // initialize pthread_key so inidiviual threads can later access their log files
 // via pthread_getspecific
-static void initKey() { pthread_key_create(&fileKey, cleanAfterThread); }
+static void initKey() { 
+  pthread_key_create(&fileKey, cleanAfterThread); 
+  pthread_key_create(&idKey, freeID);
+}
+
+pthread_t getID() {
+  pthread_t* id;
+  pthread_once(&idKey_once, initKey);
+   if ((id = (pthread_t *)pthread_getspecific(idKey)) == NULL) {
+    // include threadID in name of log file
+    pthread_mutex_lock(&id_mutex);
+    id = malloc(sizeof(pthread_t));
+    *id = ID;
+    ID++;
+    pthread_mutex_unlock(&id_mutex);
+    pthread_setspecific(idKey, id);
+  }
+  return *id;
+}
 
 FILE *OutputFile() {
   FILE *ofile;
@@ -36,13 +72,15 @@ FILE *OutputFile() {
   if ((ofile = (FILE *)pthread_getspecific(fileKey)) == NULL) {
     // include threadID in name of log file
     char filename[50];
-    snprintf(filename, 50, "llfi.stat.trace%li.txt", pthread_self());
+    snprintf(filename, 50, "llfi.stat.trace%li.txt", getID());
     ofile = fopen(filename, "w");
 
     pthread_setspecific(fileKey, ofile);
   }
   return ofile;
 }
+
+
 
 
 struct timespec GetTimeStamp() {
@@ -52,15 +90,15 @@ struct timespec GetTimeStamp() {
   return t;
 }
 void printTID(char *targetFunc) {
-  OutputFile();
+//  OutputFile();
   //fprintf(OutputFile(), " \n");
   //fprintf(OutputFile(), "%s;%li;%s;%li\n",
   //        creatorThread, pthread_self(), targetFunc, GetTimeStamp()); 
 }
 
-void printMapping(pthread_t* createdThread) {
+void printMapping(pthread_t* creatorThread) {
   struct timespec t = GetTimeStamp();
-  fprintf(OutputFile(), "Mapping: %lld%.9ld,%li,%li\n", (long long) t.tv_sec, t.tv_nsec, pthread_self(), *createdThread);
+  fprintf(OutputFile(), "Mapping: %lld%.9ld,%li,%li\n", (long long) t.tv_sec, t.tv_nsec, *creatorThread, getID());
 }
 
 
@@ -100,7 +138,7 @@ void printFunctionEntryArgs(char* fName, char* types, int count, ...) {
   int i = 0;
 //  fprintf(OutputFile(), "Start: ");
    struct timespec t = GetTimeStamp();
-  fprintf(OutputFile(), "%lld%.9ld,%li,0,call-%s-d,00-4-00000000", (long long) t.tv_sec, t.tv_nsec, pthread_self(), fName);
+  fprintf(OutputFile(), "%lld%.9ld,%li,0,call-%s-d,00-4-00000000", (long long) t.tv_sec, t.tv_nsec, getID(), fName);
   va_list args;
   va_start(args,count);
   char res[3];
@@ -138,7 +176,7 @@ void printInstTracer(long instID, char *opcode, int maxPrints, int count, char* 
     struct timespec t = GetTimeStamp();
     fprintf(OutputFile(), "%lld%.9ld,", (long long) t.tv_sec, t.tv_nsec);
     fprintf(OutputFile(), "%li,%ld,%s,",
-            pthread_self(), instID, opcode);
+            getID(), instID, opcode);
 
 //    char *ptr = va_arg(args, char *);
 //    int size = va_arg(args, int);
@@ -165,4 +203,41 @@ void printInstTracer(long instID, char *opcode, int maxPrints, int count, char* 
 void postTracing() {
   // if (ofile != NULL)
   //  fclose(ofile);
+}
+
+void* hookFunction(void* arg) {
+  void* (*routine) (void*) = NULL;
+  message* msg = (message*) arg;
+  printMapping(&msg->creator);
+  routine = msg->routine;
+  void* r_arg = msg->args;
+  free(arg);
+  return routine(r_arg);
+
+}
+
+
+int pthread_create(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine) (void*), void * arg) {
+  static int (*p_create) (pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine) (void*), void * arg) = NULL;
+  void* handle;
+  char* err;
+  if (!p_create) {
+    handle = dlopen("libpthread-2.19.so", RTLD_LAZY);
+    if (!handle) {
+      fputs(dlerror(), stderr);
+      exit(1);
+    }
+    p_create = dlsym(handle, "pthread_create");
+    if ((err = dlerror()) != NULL) {
+      fprintf(stderr, "%s\n", err); 
+      exit(1);
+    }
+  }
+  message* msg = (message*) malloc(sizeof(message));
+  msg->creator = getID();
+  msg->routine = start_routine; 
+  msg->args = arg;
+  printf("Calling my pthread_create!!\n");
+  return p_create(thread, attr, hookFunction, msg);
+
 }

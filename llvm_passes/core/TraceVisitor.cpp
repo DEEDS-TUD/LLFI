@@ -441,9 +441,9 @@ AllocaInst *aInst =
   if (CallInst *c = dyn_cast<CallInst>(&I)) {
     if (Function *ff = c->getCalledFunction()) {
       if (ff->getName() == "pthread_create") {
-        Value *v = c->getOperand(0);
-        Instruction *instPoint = getInsertPoint(I.getNextNode());
-        insertThreadMapping(v, instPoint);
+        //Value *v = c->getOperand(0);
+        //Instruction *instPoint = getInsertPoint(I.getNextNode());
+        //insertThreadMapping(v, instPoint);
       }
      /* 
       if (!ff->isDeclaration()) {
