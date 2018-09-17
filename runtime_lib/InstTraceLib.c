@@ -35,6 +35,7 @@ struct map_message {
   pthread_t creator;
   void* (*routine) (void*);
   void* args;
+  struct timespec timestamp;
 };
 typedef struct map_message message;
 // destructor function which closes respective file if thread terminates
@@ -72,7 +73,7 @@ FILE *OutputFile() {
   if ((ofile = (FILE *)pthread_getspecific(fileKey)) == NULL) {
     // include threadID in name of log file
     char filename[50];
-    snprintf(filename, 50, "llfi.stat.trace%li.txt", getID());
+    snprintf(filename, 50, "llfi.stat.trace%li-%li.txt", getID(), pthread_self());
     ofile = fopen(filename, "w");
 
     pthread_setspecific(fileKey, ofile);
@@ -96,8 +97,8 @@ void printTID(char *targetFunc) {
   //        creatorThread, pthread_self(), targetFunc, GetTimeStamp()); 
 }
 
-void printMapping(pthread_t* creatorThread) {
-  struct timespec t = GetTimeStamp();
+void printMapping(pthread_t* creatorThread, struct timespec t) {
+//  struct timespec t = GetTimeStamp();
   fprintf(OutputFile(), "Mapping: %lld%.9ld,%li,%li\n", (long long) t.tv_sec, t.tv_nsec, *creatorThread, getID());
 }
 
@@ -135,8 +136,11 @@ char* getNextType(char* res, char* types, int index) {
 }
 
 void printFunctionEntryArgs(char* fName, char* types, int count, ...) {
-  int i = 0;
 //  fprintf(OutputFile(), "Start: ");
+  if(isFaultInject(fName)) {
+    return;
+  }
+  int i = 0;
    struct timespec t = GetTimeStamp();
   fprintf(OutputFile(), "%lld%.9ld,%li,0,call-%s-d,00-4-00000000", (long long) t.tv_sec, t.tv_nsec, getID(), fName);
   va_list args;
@@ -152,6 +156,9 @@ void printFunctionEntryArgs(char* fName, char* types, int count, ...) {
   fprintf(OutputFile(), "\n");
 }
 
+int isFaultInject(char* opcode) {
+  return strncmp(opcode, "call-injectFault", 16);
+}
 static long instCount = 0;
 static long cutOff = 0;
 void printInstTracer(long instID, char *opcode, int maxPrints, int count, char* types, char* val, int v_size, ...) {
@@ -169,10 +176,12 @@ void printInstTracer(long instID, char *opcode, int maxPrints, int count, char* 
 
   // These flags are set by faultinjection_lib.c (Faulty Run) or left
   // initialized in utils.c and left unchanged (Golden run)
+  /*
   if ((start_tracing_flag == TRACING_GOLDEN_RUN) ||
       ((start_tracing_flag == TRACING_FI_RUN_START_TRACING) &&
-       (instCount < cutOff))) {
-
+       (instCount < cutOff))){
+    */
+    if (1) {
     struct timespec t = GetTimeStamp();
     fprintf(OutputFile(), "%lld%.9ld,", (long long) t.tv_sec, t.tv_nsec);
     fprintf(OutputFile(), "%li,%ld,%s,",
@@ -208,7 +217,7 @@ void postTracing() {
 void* hookFunction(void* arg) {
   void* (*routine) (void*) = NULL;
   message* msg = (message*) arg;
-  printMapping(&msg->creator);
+  printMapping(&msg->creator, msg->timestamp);
   routine = msg->routine;
   void* r_arg = msg->args;
   free(arg);
@@ -237,7 +246,8 @@ int pthread_create(pthread_t *thread, const pthread_attr_t *attr, void *(*start_
   msg->creator = getID();
   msg->routine = start_routine; 
   msg->args = arg;
-  printf("Calling my pthread_create!!\n");
+  msg->timestamp = GetTimeStamp();
+  //printf("Calling my pthread_create!!\n");
   return p_create(thread, attr, hookFunction, msg);
 
 }
