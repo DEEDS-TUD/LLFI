@@ -115,7 +115,9 @@ struct InstTrace : public FunctionPass {
     Module *M = F.getParent();
     // errs() << "Running on function " << F.getName() << " # \n";
     DataLayout &dl = getAnalysis<DataLayout>();
-    
+     if(F.getName().startswith("injectFault")) {
+      return false;
+    }
     TraceVisitor tv(&F, &context, M, &dl, maxtrace);
     errs() << "Dealing with " << F.getName() << "\n";
     tv.visit(F);

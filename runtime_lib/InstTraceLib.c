@@ -16,7 +16,8 @@ instTrace LLVM
 
 #include "Utils.h"
 #include "unistd.h"
-
+static long instCount = 0;
+static long cutOff = 0;
 // Open a file (once) for writing. This file is not explicitly closed, must
 // flush often!
 static pthread_key_t fileKey;
@@ -137,9 +138,14 @@ char* getNextType(char* res, char* types, int index) {
 
 void printFunctionEntryArgs(char* fName, char* types, int count, ...) {
 //  fprintf(OutputFile(), "Start: ");
-  if(isFaultInject(fName)) {
-    return;
-  }
+  //if(isFaultInject(fName)) {
+  //  return;
+  //}
+  //if(! ((start_tracing_flag == TRACING_GOLDEN_RUN) ||
+  //    ((start_tracing_flag == TRACING_FI_RUN_START_TRACING) &&
+  //     (instCount < cutOff)))){
+  //  return;
+  //}
   int i = 0;
    struct timespec t = GetTimeStamp();
   fprintf(OutputFile(), "%lld%.9ld,%li,0,call-%s-d,00-4-00000000", (long long) t.tv_sec, t.tv_nsec, getID(), fName);
@@ -159,8 +165,7 @@ void printFunctionEntryArgs(char* fName, char* types, int count, ...) {
 int isFaultInject(char* opcode) {
   return strncmp(opcode, "call-injectFault", 16);
 }
-static long instCount = 0;
-static long cutOff = 0;
+
 void printInstTracer(long instID, char *opcode, int maxPrints, int count, char* types, char* val, int v_size, ...) {
   //    char* ptr, int size, char*opPtr, int opSize) {
   va_list args;
@@ -176,11 +181,11 @@ void printInstTracer(long instID, char *opcode, int maxPrints, int count, char* 
 
   // These flags are set by faultinjection_lib.c (Faulty Run) or left
   // initialized in utils.c and left unchanged (Golden run)
-  /*
-  if ((start_tracing_flag == TRACING_GOLDEN_RUN) ||
-      ((start_tracing_flag == TRACING_FI_RUN_START_TRACING) &&
-       (instCount < cutOff))){
-    */
+  
+  //if ((start_tracing_flag == TRACING_GOLDEN_RUN) ||
+  //    ((start_tracing_flag == TRACING_FI_RUN_START_TRACING) &&
+  //     (instCount < cutOff))){
+    
     if (1) {
     struct timespec t = GetTimeStamp();
     fprintf(OutputFile(), "%lld%.9ld,", (long long) t.tv_sec, t.tv_nsec);
