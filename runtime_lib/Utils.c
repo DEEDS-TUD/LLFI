@@ -4,6 +4,7 @@
 #include "Utils.h"
 
 int start_tracing_flag = TRACING_GOLDEN_RUN; //for instTraceLib: initialized to Golden Run setting
+long faultAt = -1;
 
 void getOpcodeExecCycleArray(const unsigned len, int *arr) {
   int i = 0;

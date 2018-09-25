@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <time.h>
 #include <assert.h>
+#include<pthread.h>
 
 #include "Utils.h"
 #define OPTION_LENGTH 512
@@ -23,6 +24,7 @@ static int fiFlag = 1;	// Should we turn on fault injections ?
 
 static int opcodecyclearray[OPCODE_CYCLE_ARRAY_LEN];
 static bool is_fault_injected_in_curr_dyn_inst = false;
+
 
 static struct {
   char fi_type[OPTION_LENGTH];
@@ -220,7 +222,7 @@ void injectFunc(long llfi_index, unsigned size,
   fprintf(stderr, "MSG: injectFunc() has being called\n");
   if (! fiFlag) return;
   start_tracing_flag = TRACING_FI_RUN_FAULT_INSERTED; //Tell instTraceLib that we have injected a fault
-
+  faultAt = llfi_index;
   unsigned fi_bit, fi_bytepos, fi_bitpos;
   unsigned char oldbuf;
   
