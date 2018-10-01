@@ -8,7 +8,7 @@ instTrace LLVM
 
 #include <pthread.h>
 #include <stdarg.h>
-#include <stdio.h>
+//#include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
@@ -172,12 +172,13 @@ void printInstTracer(long instID, char *opcode, int maxPrints, int count, char* 
   va_start(args, v_size);
   int i;
   instCount++;
+  //TODO Has to be atomic actually...
   if (start_tracing_flag == TRACING_FI_RUN_FAULT_INSERTED) {
     start_tracing_flag = TRACING_FI_RUN_START_TRACING;
     cutOff = instCount + maxPrints;
     // Print faulty trace header (for analysis by traceDiff script)
     fprintf(OutputFile(), "#TraceStartInstNumber: %ld\n", instCount);
-    fprintf(OutputFile(), "#FAULT_AT: %ld\n", faultAt);
+//    fprintf(OutputFile(), "#FAULT: %ld\n", instID);
   }
 
   // These flags are set by faultinjection_lib.c (Faulty Run) or left
@@ -186,7 +187,7 @@ void printInstTracer(long instID, char *opcode, int maxPrints, int count, char* 
   //if ((start_tracing_flag == TRACING_GOLDEN_RUN) ||
   //    ((start_tracing_flag == TRACING_FI_RUN_START_TRACING) &&
   //     (instCount < cutOff))){
-    
+    //if (start_tracing_flag != TRACING_FI_RUN_END_TRACING){
     if (1) {
     struct timespec t = GetTimeStamp();
     fprintf(OutputFile(), "%lld%.9ld,", (long long) t.tv_sec, t.tv_nsec);

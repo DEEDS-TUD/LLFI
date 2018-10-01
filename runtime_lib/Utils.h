@@ -2,7 +2,7 @@
 #define LLFI_LIB_UTILS_H
 
 #include <stdbool.h>
-
+#include <stdio.h>
 // TRACING =  Tracing flag
 #define TRACING_GOLDEN_RUN -1
 #define TRACING_FI_RUN_INIT 0
@@ -11,6 +11,7 @@
 #define TRACING_FI_RUN_END_TRACING 3
 extern int start_tracing_flag;
 extern long faultAt;
+FILE *OutputFile(); 
 // assume the max opcode in instruction.def (LLVM) is smaller than 100
 #define OPCODE_CYCLE_ARRAY_LEN 100
 void getOpcodeExecCycleArray(const unsigned len, int *arr);

@@ -220,9 +220,19 @@ bool preFunc(long llfi_index, unsigned opcode, unsigned my_reg_index,
 void injectFunc(long llfi_index, unsigned size, 
                 char *buf, unsigned my_reg_index, unsigned reg_pos, char* opcode_str) {
   fprintf(stderr, "MSG: injectFunc() has being called\n");
-  if (! fiFlag) return;
+  if (! fiFlag) {
+     //fprintf(stderr, "MSG: FI is turned off!!\n");
+    return;
+  } 
+  /*
+  else {
+    fprintf(stderr, "MSG: FI is turned on!!\n");
+  }
+*/
   start_tracing_flag = TRACING_FI_RUN_FAULT_INSERTED; //Tell instTraceLib that we have injected a fault
   faultAt = llfi_index;
+  fprintf(OutputFile(), "FAULT: %ld\n", llfi_index);
+//  fprintf(OutputFile(), "TEST!\n");
   unsigned fi_bit, fi_bytepos, fi_bitpos;
   unsigned char oldbuf;
   
