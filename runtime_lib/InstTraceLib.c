@@ -101,6 +101,7 @@ void printTID(char *targetFunc) {
 void printMapping(pthread_t* creatorThread, struct timespec t) {
 //  struct timespec t = GetTimeStamp();
   fprintf(OutputFile(), "Mapping: %lld%.9ld,%li,%li\n", (long long) t.tv_sec, t.tv_nsec, *creatorThread, getID());
+  fflush(OutputFile());
 }
 
 
@@ -117,6 +118,7 @@ void printContent(char *ptr, int size, char* type) {
       fprintf(OutputFile(), "%02hhx", ptr[i]);
     }
   }
+  fflush(OutputFile());
 }
 
 void printGlobalVariables(char* name, char* ptr, int ptrSize, int size) {
@@ -124,6 +126,7 @@ void printGlobalVariables(char* name, char* ptr, int ptrSize, int size) {
   char* type = "14";
   printContent(ptr, ptrSize, type);
   fprintf(OutputFile(), ",%d\n", size);
+  fflush(OutputFile());
 //  fprintf(OutputFile(), ",\n");
 }
 
@@ -160,6 +163,7 @@ void printFunctionEntryArgs(char* fName, char* types, int count, ...) {
   }
   va_end(args); 
   fprintf(OutputFile(), "\n");
+  fflush(OutputFile());
 }
 
 int isFaultInject(char* opcode) {
@@ -208,7 +212,7 @@ void printInstTracer(long instID, char *opcode, int maxPrints, int count, char* 
     fprintf(OutputFile(), "\n");
     // no need to flush, since files are getting automatically closed once
     // threads exit
-    // fflush(OutputFile());
+    fflush(OutputFile());
   }
   if ((start_tracing_flag != TRACING_GOLDEN_RUN) && instCount >= cutOff) {
     start_tracing_flag = TRACING_FI_RUN_END_TRACING;
