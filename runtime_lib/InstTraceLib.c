@@ -10,7 +10,6 @@ instTrace LLVM
 #include <stdarg.h>
 //#include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
 #include <string.h>
 #include <dlfcn.h>
 
@@ -38,6 +37,7 @@ struct map_message {
   void* args;
   struct timespec timestamp;
 };
+
 typedef struct map_message message;
 // destructor function which closes respective file if thread terminates
 static void cleanAfterThread(void *ofile) { fclose((FILE *)ofile); }
@@ -85,12 +85,7 @@ FILE *OutputFile() {
 
 
 
-struct timespec GetTimeStamp() {
-  struct timespec t;
-  // Check which clock to use (CLOCK_REALTIME??)
-  clock_gettime(CLOCK_MONOTONIC, &t);
-  return t;
-}
+
 void printTID(char *targetFunc) {
 //  OutputFile();
   //fprintf(OutputFile(), " \n");

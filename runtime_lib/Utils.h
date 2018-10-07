@@ -3,6 +3,8 @@
 
 #include <stdbool.h>
 #include <stdio.h>
+
+#include <time.h>
 // TRACING =  Tracing flag
 #define TRACING_GOLDEN_RUN -1
 #define TRACING_FI_RUN_INIT 0
@@ -12,6 +14,8 @@
 extern int start_tracing_flag;
 extern long faultAt;
 FILE *OutputFile(); 
+
+struct timespec GetTimeStamp(); 
 // assume the max opcode in instruction.def (LLVM) is smaller than 100
 #define OPCODE_CYCLE_ARRAY_LEN 100
 void getOpcodeExecCycleArray(const unsigned len, int *arr);

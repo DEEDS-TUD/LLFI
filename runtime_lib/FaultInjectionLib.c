@@ -220,7 +220,10 @@ bool preFunc(long llfi_index, unsigned opcode, unsigned my_reg_index,
 void injectFunc(long llfi_index, unsigned size, 
                 char *buf, unsigned my_reg_index, unsigned reg_pos, char* opcode_str) {
   fprintf(stderr, "MSG: injectFunc() has being called\n");
-  fprintf(OutputFile(), "FAULT: %ld\n", llfi_index);
+  struct timespec t = GetTimeStamp();
+  fprintf(OutputFile(), "FAULT: %lld%.9ld,%ld\n", (long long) t.tv_sec, t.tv_nsec, llfi_index);
+
+  //fprintf(OutputFile(), "FAULT: %ld\n", llfi_index);
   fflush(OutputFile());
 
   if (! fiFlag) {

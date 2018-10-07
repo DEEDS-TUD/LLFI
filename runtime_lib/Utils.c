@@ -16,6 +16,13 @@ void getOpcodeExecCycleArray(const unsigned len, int *arr) {
   arr[N] = CYCLE;
 #include "Instruction.def"
 }
+struct timespec GetTimeStamp() {
+  struct timespec t;
+  // Check which clock to use (CLOCK_REALTIME??)
+  clock_gettime(CLOCK_MONOTONIC, &t);
+  return t;
+}
+
 
 
 bool isLittleEndian() {
