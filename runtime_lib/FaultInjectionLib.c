@@ -155,10 +155,15 @@ void _parseLLFIConfigFile() {
   fclose(ficonfigFile);
 }
 
+void turnOffInjections();
+
 /**
  * external libraries
  */
 void initInjections() {
+  if (getenv("LLFI_FI_OFF")) {
+      turnOffInjections();
+  }
   _initRandomSeed();
   _parseLLFIConfigFile();
   getOpcodeExecCycleArray(OPCODE_CYCLE_ARRAY_LEN, opcodecyclearray);
