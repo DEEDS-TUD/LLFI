@@ -392,13 +392,17 @@ class diffLine:
         elements = str(rawLine).split()
         # ID: 14\tOPCode: sub\tValue: 1336d337
         debug("RAWLINE: " + str(rawLine), 3)
-        assert (elements[0] in ["ID:", "-ID:", "+ID:"] and elements[2] == "OPCode:" and
-                elements[4] == "Value:"), "DiffLine constructor called incorrectly"
+        assert elements[0] in ["ID:", "-ID:", "+ID:"], \
+            'Malformed raw line (ID): {}'.format(elements[0])
+        assert elements[2] == "OPCode:", \
+            'Malformed raw line (OPCode): {}'.format(elements[2])
+        assert elements[4] == "Value:", \
+            'Malformed raw line (Value): {}'.format(elements[4])
         self.ID = int(elements[1])
         self.OPCode = str(elements[3])
         self.Value = 0
         if (len(elements) > 5):
-            self.Value = int(elements[5], 16)
+            self.Value = elements[5]
 
     def _print(self):
         print("ID:", self.ID, "OPCode", self.OPCode, "Value:", self.Value)
