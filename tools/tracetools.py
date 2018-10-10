@@ -83,8 +83,8 @@ class diffBlock:
         # izip = zip(self.origLines, self.newLines)
         if len(self.newLines) != len(self.origLines):
             print('ERROR: Number of added and removed lines in hunk are '
-                  'different {} vs. {}.',
-                  len(self.newLines), len(self.origLines))
+                  'different {} vs. {}.'.format(len(self.newLines),
+                                                len(self.origLines)))
             self.printdebug()
             sys.exit(2)
 
