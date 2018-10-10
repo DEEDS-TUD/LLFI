@@ -7,6 +7,7 @@
 
 import difflib
 import itertools
+import sys
 
 debugFlag = 0
 
@@ -79,6 +80,13 @@ class diffBlock:
         instanceList = []
 
         izip = itertools.zip_longest(self.origLines, self.newLines)
+        # izip = zip(self.origLines, self.newLines)
+        if len(self.newLines) != len(self.origLines):
+            print('ERROR: Number of added and removed lines in hunk are '
+                  'different {} vs. {}.',
+                  len(self.newLines), len(self.origLines))
+            self.printdebug()
+            sys.exit(2)
 
         instance = diffInstance(0, 0, 0, 0)
         for i, (g, f) in enumerate(izip):
