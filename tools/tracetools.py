@@ -113,6 +113,11 @@ class diffBlock:
                     instance.incNewLength()
         if (instance.summary is not None):
             instanceList.append(instance.summary())
+        if len(instanceList) != 2:
+            print('ERROR: Unexpected diff instance summary state '
+                  '(len={}, should be 2).'.format(len(instanceList)))
+            self.printdebug()
+            sys.exit(2)
         return instanceList[1]
 
 
