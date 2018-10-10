@@ -37,6 +37,8 @@ import itertools as it
 
 PROG = os.path.basename(sys.argv[0])
 
+QUICK_MODE = False
+
 
 def parseArgs():
     parser = argparse.ArgumentParser(
@@ -44,8 +46,17 @@ def parseArgs():
     parser.add_argument(
         '--no-dot', action='store_true',
         help='Do not generate dot files for diff reports.')
+    parser.add_argument(
+        '--quick-report', action='store_true',
+        help='USe quick stop mode for diff report generation. '
+             'Implies --no-dot.')
 
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.quick_report:
+        global QUICK_MODE
+        QUICK_MODE = True
+        args.no_dot = True
+    return args
 
 
 def findPath():
@@ -133,7 +144,8 @@ def executeTraceDiff():
 
 def call_trace_diff(trace_file):
     print('Processing: {}'.format(trace_file), flush=True)
-    cmd = (scriptdir + "/tracediff " + goldenTraceFilePath + " " +
+    cmd = (scriptdir + "/tracediff " + '--quick ' if QUICK_MODE else '' +
+           goldenTraceFilePath + " " +
            trace_file + " > " + traceOutputFolder + "/TraceDiffReportFile" +
            trace_file[trace_file.find("llfi.stat.trace") +
                       len("llfi.stat.trace"):])
