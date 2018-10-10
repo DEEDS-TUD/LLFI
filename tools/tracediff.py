@@ -11,9 +11,9 @@
 # to file
 
 
-import sys
 import os
-import glob
+import sys
+import argparse
 from tracetools import *
 
 prog = os.path.basename(sys.argv[0])
@@ -23,21 +23,31 @@ def traceDiff(argv, output=0):
     # save stdout so we can redirect it without mangling other python scripts
     oldSTDOut = sys.stdout
 
+    parser = argparse.ArgumentParser(
+        description='Compares the golden program trace and fault injection '
+        'program trace and summarizes the differences.')
+    parser.add_argument(
+        'golden_trace',
+        help='Trace from the golden run.'
+    )
+    parser.add_argument(
+        'faulty_trace',
+        help='Trace from a faulty run.'
+    )
+    parser.add_argument(
+        '--quick', action='store_true',
+        help='Do a quick decision whether there is a deviation or not.')
+    args = parser.parse_args()
+
     # TODO: rewrite the command line argument of the script
     if output != 0:
         sys.stdout = open(output, "wb")
-    if (len(argv) != 3):
-        print(
-            "ERROR: running option: %(prog)s <golden output> <faulty output>" % {
-                'prog': prog},
-            file=sys.stderr)
-        exit(1)
 
-    goldFile = open(argv[1], 'r')
+    goldFile = open(args.golden_trace, 'r')
     goldTrace = goldFile.read()
     goldFile.close()
 
-    faultyFile = open(argv[2], 'r')
+    faultyFile = open(args.faulty_trace, 'r')
     faultyTrace = faultyFile.read()
     faultyFile.close()
 
@@ -106,8 +116,4 @@ def traceDiff(argv, output=0):
 
 
 if (__name__ == "__main__"):
-    if len(sys.argv) >= 2 and (sys.argv[1] == '-h' or sys.argv[1] == '--help'):
-        print(("%(prog)s compares the golden program trace and fault injection program trace and summarizes the differences\n\n"
-               "running option: %(prog)s <golden output> <faulty output>" % {"prog": prog}), file=sys.stderr)
-    else:
-        traceDiff(sys.argv)
+    traceDiff(sys.argv)
