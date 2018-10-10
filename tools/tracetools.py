@@ -11,7 +11,6 @@ import sys
 
 debugFlag = 0
 
-
 def debug(text, level=5):
     global debugFlag
     if debugFlag == level:
@@ -20,6 +19,27 @@ def debug(text, level=5):
 
 goldenRemovedCount = []
 faultyRemovedCount = []
+
+DEVC = 23
+DEVD = 24
+DEVN = 0
+QUICK_STOP_MSGS = {DEVC: 'ControlDeviation',
+                   DEVD: 'DataDeviation',
+                   DEVN: 'NoDeviation'}
+
+def quick_stop(reason, enable=False, **kwargs):
+    if enable:
+        if reason in QUICK_STOP_MSGS.keys():
+            if kwargs:
+                print('{},{}'.format(QUICK_STOP_MSGS[reason],
+                                     ','.join('{}={}'.format(k, v) for k, v in
+                                              sorted(kwargs.items()))))
+            else:
+                print(QUICK_STOP_MSGS[reason])
+            sys.exit(reason)
+        else:
+            print('ERROR: Invalid quick stop reason: {}'.format(reason))
+            sys.exit(1)
 
 
 class diffBlock:
@@ -260,11 +280,13 @@ class diffInstance:
 
 
 class diffReport:
-    def __init__(self, goldenLines, faultyLines, startPoint, injectedID):
+    def __init__(self, goldenLines, faultyLines, startPoint, injectedID,
+                 quick=False):
         self.injectedID = injectedID
         debug("Starting a diffReport, startpoint = " + str(startPoint))
         self.startPoint = startPoint
         self.blocks = []
+        self.quick = quick
 
         # perform ctrl diff analysis
         goldenIDs = goldenLines[:]
@@ -273,9 +295,9 @@ class diffReport:
         faultyIDs = trimLinesToCtrlIDs(faultyIDs)
 
         # This ugly hack forces the difflib routine to prioritize certain ctrl flow matches.
-# TODO: the fundamental problem here is unix diff is not greedy
-# so we might need to come up with a comprehensive fix
-# The hack might not always work. Jiesheng
+        # TODO: the fundamental problem here is unix diff is not greedy
+        # so we might need to come up with a comprehensive fix
+        # The hack might not always work. Jiesheng
 
         i = 0
         while i < len(goldenIDs):
@@ -294,6 +316,8 @@ class diffReport:
                 lineterm=''))
 
         if ctrldiff:
+            quick_stop(DEVC, quick, DiffLen=len(ctrldiff))
+
             ctrldiff.pop(0)
             ctrldiff.pop(0)
 
@@ -352,6 +376,7 @@ class diffReport:
                 lineterm=''))
 
         if datadiff:
+            quick_stop(DEVD, quick, DiffLen=len(datadiff))
             datadiff.pop(0)
             datadiff.pop(0)
 
@@ -375,6 +400,8 @@ class diffReport:
                 self.blocks.append(diffBlock(datadiff[start:start + length]))
 
     def printSummary(self):
+        quick_stop(DEVN, self.quick)
+
         # Sort the list of blocks by their starting point (wrt the golden
         # trace)
         self.blocks.sort(
