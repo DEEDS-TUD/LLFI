@@ -52,7 +52,13 @@ def traceDiff(argv, output=0):
     faultyFile.close()
 
     goldTraceLines = goldTrace.split("\n")
+    if len(goldTraceLines) < 2:
+        print('ERROR: Invalid golden trace. File too short.')
+        sys.exit(1)
     faultyTraceLines = faultyTrace.split("\n")
+    if len(faultyTraceLines) < 2:
+        print('ERROR: Invalid faulty trace. File too short.')
+        sys.exit(1)
 
     # Examine Header of Trace File
     header = faultyTraceLines[0].split(' ')
