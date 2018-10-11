@@ -61,6 +61,7 @@ def traceDiff(argv, output=0):
         sys.exit(1)
 
     # Examine Header of Trace File
+    faultyTraceStartPoint = None
     header = faultyTraceLines[0].split(' ')
     for i in range(0, len(header) - 1):
         keyword = header[i]
@@ -71,6 +72,8 @@ def traceDiff(argv, output=0):
             faultyTraceLines.pop(0)
             for i in range(0, faultyTraceStartPoint - 1):
                 goldTraceLines.pop(0)
+    if faultyTraceStartPoint is None:
+      faultyTraceStartPoint = 0
 
     # record and report the fault injected line
     goldInjectedLine = diffLine(goldTraceLines[0])
