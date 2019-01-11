@@ -25,6 +25,7 @@ static int fiFlag = 1;	// Should we turn on fault injections ?
 static int opcodecyclearray[OPCODE_CYCLE_ARRAY_LEN];
 static bool is_fault_injected_in_curr_dyn_inst = false;
 
+static pthread_mutex_t lol_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static struct {
   char fi_type[OPTION_LENGTH];
@@ -185,7 +186,10 @@ bool preFunc(long llfi_index, unsigned opcode, unsigned my_reg_index,
   assert(opcodecyclearray[opcode] >= 0 && 
           "opcode does not exist, need to update instructions.def");
   
-   if (! fiFlag) return false;
+  if (! fiFlag) return false;
+
+  pthread_mutex_lock(&lol_mutex);
+
    if (my_reg_index == 0)
     is_fault_injected_in_curr_dyn_inst = false;
 
@@ -219,6 +223,7 @@ bool preFunc(long llfi_index, unsigned opcode, unsigned my_reg_index,
   if (my_reg_index == total_reg_target_num - 1)
     curr_cycle += opcodecyclearray[opcode];
 
+  pthread_mutex_unlock(&lol_mutex);
   return reg_selected;
 }
 
