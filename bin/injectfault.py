@@ -145,7 +145,8 @@ def execute( execlist, timeout):
   print(' '.join(execlist))
   #get state of directory
   dirSnapshot()
-  p = subprocess.Popen(execlist, stdout = subprocess.PIPE)
+  p = subprocess.Popen(execlist, stdout = subprocess.PIPE,
+                       stderr = subprocess.PIPE)
   outputFile = open(outputfile, "wb")
   program_timed_out = False
   start_time = 0
@@ -174,6 +175,7 @@ def execute( execlist, timeout):
     bytes("\n\n ### Process killed by LLFI for timing out ###\n","UTF-8"))
 
   outputFile.write(p_stdout)
+  outputFile.write(p_stderr)
 
   if program_timed_out:
     outputFile.write(
