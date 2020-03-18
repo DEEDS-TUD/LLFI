@@ -237,7 +237,7 @@ int pthread_create(pthread_t *thread, const pthread_attr_t *attr, void *(*start_
   void* handle;
   char* err;
   if (!p_create) {
-    handle = dlopen("libpthread-2.19.so", RTLD_LAZY);
+    handle = dlopen("libpthread-2.24.so", RTLD_LAZY);
     if (!handle) {
       fputs(dlerror(), stderr);
       exit(1);
